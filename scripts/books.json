@@ -1,0 +1,702 @@
+[
+    {
+        "title": "The Ugly Duckling",
+        "author": "Hans Christian Andersen",
+        "isbn": "9784823946318",
+        "catalog_price": 60.17,
+        "initial_stock": 17
+    },
+    {
+        "title": "The Subtle Knife",
+        "author": "Philip Pullman",
+        "isbn": "9781407104072",
+        "catalog_price": 79.56,
+        "initial_stock": 3
+    },
+    {
+        "title": "Ab urbe condita",
+        "author": "Titus Livius",
+        "isbn": "9785081529152",
+        "catalog_price": 75.73,
+        "initial_stock": 18
+    },
+    {
+        "title": "Gorin no sho",
+        "author": "Miyamoto Musashi",
+        "isbn": "9788327683625",
+        "catalog_price": 18.7,
+        "initial_stock": 19
+    },
+    {
+        "title": "The House of Mirth",
+        "author": "Edith Wharton",
+        "isbn": "9780786277360",
+        "catalog_price": 58.17,
+        "initial_stock": 15
+    },
+    {
+        "title": "Also sprach Zarathustra",
+        "author": "Friedrich Nietzsche",
+        "isbn": "9789706665539",
+        "catalog_price": 99.6,
+        "initial_stock": 2
+    },
+    {
+        "title": "The Phoenix and the Carpet",
+        "author": "Edith Nesbit",
+        "isbn": "9788567517445",
+        "catalog_price": 92.79,
+        "initial_stock": 13
+    },
+    {
+        "title": "A Study in Scarlet",
+        "author": "Arthur Conan Doyle",
+        "isbn": "9780192823809",
+        "catalog_price": 49.76,
+        "initial_stock": 6
+    },
+    {
+        "title": "Tao te Ching",
+        "author": "老子",
+        "isbn": "9780895295064",
+        "catalog_price": 18.0,
+        "initial_stock": 20
+    },
+    {
+        "title": "Tik-Tok of Oz",
+        "author": "L. Frank Baum",
+        "isbn": "9781077768468",
+        "catalog_price": 84.77,
+        "initial_stock": 7
+    },
+    {
+        "title": "The Magician's Nephew",
+        "author": "C.S. Lewis",
+        "isbn": "9785413758861",
+        "catalog_price": 25.9,
+        "initial_stock": 7
+    },
+    {
+        "title": "Paradise Lost",
+        "author": "John Milton",
+        "isbn": "9787183600432",
+        "catalog_price": 85.19,
+        "initial_stock": 19
+    },
+    {
+        "title": "The Night Before Christmas",
+        "author": "Clement Clarke Moore",
+        "isbn": "9781781866290",
+        "catalog_price": 56.37,
+        "initial_stock": 8
+    },
+    {
+        "title": "The Book Thief",
+        "author": "Markus Zusak",
+        "isbn": "9780786290215",
+        "catalog_price": 93.56,
+        "initial_stock": 14
+    },
+    {
+        "title": "Fahrenheit 451",
+        "author": "Ray Bradbury",
+        "isbn": "9780329046491",
+        "catalog_price": 75.19,
+        "initial_stock": 11
+    },
+    {
+        "title": "The Horse and His Boy",
+        "author": "C.S. Lewis",
+        "isbn": "006023489x",
+        "catalog_price": 10.77,
+        "initial_stock": 17
+    },
+    {
+        "title": "Northern Lights",
+        "author": "Philip Pullman",
+        "isbn": "9786230519840",
+        "catalog_price": 81.35,
+        "initial_stock": 9
+    },
+    {
+        "title": "Kim",
+        "author": "Rudyard Kipling",
+        "isbn": "9784569629766",
+        "catalog_price": 55.8,
+        "initial_stock": 13
+    },
+    {
+        "title": "Πολιτικά (Politiká)",
+        "author": "Aristotle",
+        "isbn": "9781228845154",
+        "catalog_price": 95.62,
+        "initial_stock": 18
+    },
+    {
+        "title": "Orlando",
+        "author": "Virginia Woolf",
+        "isbn": "9785079535981",
+        "catalog_price": 10.11,
+        "initial_stock": 2
+    },
+    {
+        "title": "War and Peace",
+        "author": "Лев Толстой",
+        "isbn": "9781566190275",
+        "catalog_price": 59.17,
+        "initial_stock": 13
+    },
+    {
+        "title": "Chemistry",
+        "author": "Theodore L. Brown",
+        "isbn": "9788707587727",
+        "catalog_price": 74.63,
+        "initial_stock": 20
+    },
+    {
+        "title": "The Jungle",
+        "author": "Upton Sinclair",
+        "isbn": "9784210764754",
+        "catalog_price": 73.12,
+        "initial_stock": 17
+    },
+    {
+        "title": "Bambi (First Colouring Tall)",
+        "author": "Felix Salten",
+        "isbn": "9782819156031",
+        "catalog_price": 50.61,
+        "initial_stock": 1
+    },
+    {
+        "title": "Ὀδύσσεια",
+        "author": "Όμηρος",
+        "isbn": "9781735514598",
+        "catalog_price": 22.48,
+        "initial_stock": 17
+    },
+    {
+        "title": "We're Going on a Bear Hunt",
+        "author": "Michael Rosen",
+        "isbn": "9782516685742",
+        "catalog_price": 77.94,
+        "initial_stock": 13
+    },
+    {
+        "title": "Catching Fire",
+        "author": "Suzanne Collins",
+        "isbn": "9788372788757",
+        "catalog_price": 94.12,
+        "initial_stock": 2
+    },
+    {
+        "title": "The book of the damned",
+        "author": "Charles Fort",
+        "isbn": "9787863312426",
+        "catalog_price": 43.17,
+        "initial_stock": 18
+    },
+    {
+        "title": "Beloved",
+        "author": "Toni Morrison",
+        "isbn": "9781407694702",
+        "catalog_price": 76.95,
+        "initial_stock": 18
+    },
+    {
+        "title": "Aeneis",
+        "author": "Publius Vergilius Maro",
+        "isbn": "9780451622778",
+        "catalog_price": 55.81,
+        "initial_stock": 17
+    },
+    {
+        "title": "Ἰλιάς",
+        "author": "Όμηρος",
+        "isbn": "9786164557246",
+        "catalog_price": 94.3,
+        "initial_stock": 1
+    },
+    {
+        "title": "Prince Caspian",
+        "author": "C.S. Lewis",
+        "isbn": "9780545078313",
+        "catalog_price": 68.66,
+        "initial_stock": 8
+    },
+    {
+        "title": "A Wonder Book for Girls and Boys",
+        "author": "Nathaniel Hawthorne",
+        "isbn": "9787772775879",
+        "catalog_price": 26.91,
+        "initial_stock": 11
+    },
+    {
+        "title": "A Little Princess",
+        "author": "Frances Hodgson Burnett",
+        "isbn": "0893755001",
+        "catalog_price": 11.64,
+        "initial_stock": 13
+    },
+    {
+        "title": "Twilight",
+        "author": "Stephenie Meyer",
+        "isbn": "9787551570794",
+        "catalog_price": 54.85,
+        "initial_stock": 12
+    },
+    {
+        "title": "The book of tea",
+        "author": "Okakura Kakuzo",
+        "isbn": "9780307960757",
+        "catalog_price": 96.51,
+        "initial_stock": 20
+    },
+    {
+        "title": "The Adventures of Tom Sawyer",
+        "author": "Mark Twain",
+        "isbn": "8742974208",
+        "catalog_price": 10.28,
+        "initial_stock": 7
+    },
+    {
+        "title": "Metamorphoses",
+        "author": "Ovid",
+        "isbn": "9781498074254",
+        "catalog_price": 63.58,
+        "initial_stock": 17
+    },
+    {
+        "title": "The Case-Book of Sherlock Holmes",
+        "author": "Arthur Conan Doyle",
+        "isbn": "9785722556387",
+        "catalog_price": 80.15,
+        "initial_stock": 14
+    },
+    {
+        "title": "The Last Battle",
+        "author": "C.S. Lewis",
+        "isbn": "9780060884796",
+        "catalog_price": 69.83,
+        "initial_stock": 19
+    },
+    {
+        "title": "Heidi",
+        "author": "Johanna Spyri",
+        "isbn": "9780439461276",
+        "catalog_price": 14.32,
+        "initial_stock": 13
+    },
+    {
+        "title": "The Very Hungry Caterpillar",
+        "author": "Eric Carle",
+        "isbn": "9780141332567",
+        "catalog_price": 23.66,
+        "initial_stock": 15
+    },
+    {
+        "title": "Sult",
+        "author": "Knut Hamsun",
+        "isbn": "9786819213855",
+        "catalog_price": 44.97,
+        "initial_stock": 15
+    },
+    {
+        "title": "The Godfather",
+        "author": "Mario Puzo",
+        "isbn": "9788372001108",
+        "catalog_price": 78.9,
+        "initial_stock": 1
+    },
+    {
+        "title": "The Wonderful Wizard of Oz",
+        "author": "L. Frank Baum",
+        "isbn": "0893759910",
+        "catalog_price": 23.61,
+        "initial_stock": 4
+    },
+    {
+        "title": "The Secret Adversary",
+        "author": "Agatha Christie",
+        "isbn": "9781071485132",
+        "catalog_price": 82.83,
+        "initial_stock": 10
+    },
+    {
+        "title": "Jamaica Inn",
+        "author": "Daphne du Maurier",
+        "isbn": "9784013392512",
+        "catalog_price": 53.88,
+        "initial_stock": 11
+    },
+    {
+        "title": "The Road to Oz",
+        "author": "L. Frank Baum",
+        "isbn": "9782190629704",
+        "catalog_price": 23.3,
+        "initial_stock": 13
+    },
+    {
+        "title": "The Jungle Book",
+        "author": "Rudyard Kipling",
+        "isbn": "0448171503",
+        "catalog_price": 39.18,
+        "initial_stock": 4
+    },
+    {
+        "title": "The Tale of Peter Rabbit",
+        "author": "Beatrix Potter",
+        "isbn": "9789741262588",
+        "catalog_price": 26.55,
+        "initial_stock": 8
+    },
+    {
+        "title": "A Princess of Mars",
+        "author": "Edgar Rice Burroughs",
+        "isbn": "9782712354077",
+        "catalog_price": 28.29,
+        "initial_stock": 10
+    },
+    {
+        "title": "πολιτεία",
+        "author": "Πλάτων",
+        "isbn": "9788350273312",
+        "catalog_price": 14.49,
+        "initial_stock": 2
+    },
+    {
+        "title": "An American Tragedy",
+        "author": "Theodore Dreiser",
+        "isbn": "9784711137415",
+        "catalog_price": 25.48,
+        "initial_stock": 11
+    },
+    {
+        "title": "Demian",
+        "author": "Hermann Hesse",
+        "isbn": "9781606710289",
+        "catalog_price": 63.05,
+        "initial_stock": 9
+    },
+    {
+        "title": "The King in Yellow",
+        "author": "Robert W. Chambers",
+        "isbn": "9788547152536",
+        "catalog_price": 18.77,
+        "initial_stock": 2
+    },
+    {
+        "title": "Anne's House of Dreams",
+        "author": "Lucy Maud Montgomery",
+        "isbn": "9784102113462",
+        "catalog_price": 67.84,
+        "initial_stock": 16
+    },
+    {
+        "title": "The Marvelous Land of Oz",
+        "author": "L. Frank Baum",
+        "isbn": "9786599105500",
+        "catalog_price": 77.77,
+        "initial_stock": 6
+    },
+    {
+        "title": "Confessions",
+        "author": "Augustine of Hippo",
+        "isbn": "9780486424668",
+        "catalog_price": 31.75,
+        "initial_stock": 11
+    },
+    {
+        "title": "On the Beach",
+        "author": "Nevil Shute",
+        "isbn": "9780307473998",
+        "catalog_price": 44.41,
+        "initial_stock": 11
+    },
+    {
+        "title": "A Wrinkle in Time",
+        "author": "Madeleine L'Engle",
+        "isbn": "9780440498056",
+        "catalog_price": 17.36,
+        "initial_stock": 2
+    },
+    {
+        "title": "The Complete Life and Adventures of Santa Claus",
+        "author": "L. Frank Baum",
+        "isbn": "9780622213682",
+        "catalog_price": 82.63,
+        "initial_stock": 19
+    },
+    {
+        "title": "Nicomachean Ethics",
+        "author": "Aristotle",
+        "isbn": "9780872204645",
+        "catalog_price": 37.07,
+        "initial_stock": 9
+    },
+    {
+        "title": "De rerum natura",
+        "author": "Titus Lucretius Carus",
+        "isbn": "9784316132013",
+        "catalog_price": 84.06,
+        "initial_stock": 3
+    },
+    {
+        "title": "History of the Peloponnesian War",
+        "author": "Thucydides",
+        "isbn": "9786081592344",
+        "catalog_price": 92.94,
+        "initial_stock": 17
+    },
+    {
+        "title": "The Book of Dragons",
+        "author": "Edith Nesbit",
+        "isbn": "9784019299594",
+        "catalog_price": 22.34,
+        "initial_stock": 8
+    },
+    {
+        "title": "The science of getting rich, or, financial success through creative thought",
+        "author": "Wallace D. Wattles",
+        "isbn": "9781599869926",
+        "catalog_price": 26.49,
+        "initial_stock": 2
+    },
+    {
+        "title": "Pippi Långstrump",
+        "author": "Astrid Lindgren",
+        "isbn": "9782891352543",
+        "catalog_price": 20.53,
+        "initial_stock": 19
+    },
+    {
+        "title": "Rebecca",
+        "author": "Daphne du Maurier",
+        "isbn": "9780034467048",
+        "catalog_price": 63.11,
+        "initial_stock": 19
+    },
+    {
+        "title": "Le Morte d'Arthur",
+        "author": "Thomas Malory",
+        "isbn": "9780448060163",
+        "catalog_price": 18.2,
+        "initial_stock": 2
+    },
+    {
+        "title": "The Enchanted Castle",
+        "author": "Edith Nesbit",
+        "isbn": "9788865990865",
+        "catalog_price": 71.34,
+        "initial_stock": 7
+    },
+    {
+        "title": "Essay concerning human understanding",
+        "author": "John Locke",
+        "isbn": "9785388215123",
+        "catalog_price": 83.98,
+        "initial_stock": 6
+    },
+    {
+        "title": "Ulysses",
+        "author": "James Joyce",
+        "isbn": "9782848009896",
+        "catalog_price": 91.51,
+        "initial_stock": 2
+    },
+    {
+        "title": "Middlemarch",
+        "author": "George Eliot",
+        "isbn": "9785251650792",
+        "catalog_price": 89.71,
+        "initial_stock": 5
+    },
+    {
+        "title": "Elements",
+        "author": "Euclid",
+        "isbn": "9787782995762",
+        "catalog_price": 40.55,
+        "initial_stock": 17
+    },
+    {
+        "title": "Ozma of Oz",
+        "author": "L. Frank Baum",
+        "isbn": "9783888736490",
+        "catalog_price": 41.79,
+        "initial_stock": 13
+    },
+    {
+        "title": "Dorothy and the Wizard in Oz",
+        "author": "L. Frank Baum",
+        "isbn": "9780345341686",
+        "catalog_price": 38.88,
+        "initial_stock": 14
+    },
+    {
+        "title": "Coloring Book",
+        "author": "Donald Nguyen",
+        "isbn": "9780401193266",
+        "catalog_price": 99.83,
+        "initial_stock": 9
+    },
+    {
+        "title": "Five Children and It",
+        "author": "Edith Nesbit",
+        "isbn": "9781442664777",
+        "catalog_price": 11.94,
+        "initial_stock": 1
+    },
+    {
+        "title": "The Sea Fairies",
+        "author": "L. Frank Baum",
+        "isbn": "9781802864915",
+        "catalog_price": 95.07,
+        "initial_stock": 13
+    },
+    {
+        "title": "Imitation of Christ",
+        "author": "Thomas à Kempis",
+        "isbn": "9783915040231",
+        "catalog_price": 47.75,
+        "initial_stock": 15
+    },
+    {
+        "title": "Goodnight Moon",
+        "author": "Margaret Wise Brown",
+        "isbn": "0590092421",
+        "catalog_price": 30.62,
+        "initial_stock": 1
+    },
+    {
+        "title": "Alice's Adventures in Wonderland",
+        "author": "Lewis Carroll",
+        "isbn": "9781533043528",
+        "catalog_price": 86.49,
+        "initial_stock": 17
+    },
+    {
+        "title": "Peter Pan",
+        "author": "J. M. Barrie",
+        "isbn": "9789921405248",
+        "catalog_price": 70.88,
+        "initial_stock": 11
+    },
+    {
+        "title": "Ivanhoe",
+        "author": "Sir Walter Scott",
+        "isbn": "9784379719633",
+        "catalog_price": 38.72,
+        "initial_stock": 19
+    },
+    {
+        "title": "Pollyanna",
+        "author": "Eleanor Hodgman Porter",
+        "isbn": "9788081510168",
+        "catalog_price": 25.14,
+        "initial_stock": 5
+    },
+    {
+        "title": "The Sign of Four",
+        "author": "Arthur Conan Doyle",
+        "isbn": "9783859221529",
+        "catalog_price": 92.7,
+        "initial_stock": 10
+    },
+    {
+        "title": "Mere Christianity",
+        "author": "C.S. Lewis",
+        "isbn": "9782158015747",
+        "catalog_price": 20.28,
+        "initial_stock": 6
+    },
+    {
+        "title": "The Gruffalo",
+        "author": "Julia Donaldson",
+        "isbn": "9781447200581",
+        "catalog_price": 61.49,
+        "initial_stock": 18
+    },
+    {
+        "title": "Good wives",
+        "author": "Louisa May Alcott",
+        "isbn": "9782038508321",
+        "catalog_price": 25.27,
+        "initial_stock": 8
+    },
+    {
+        "title": "Anna Karenina",
+        "author": "Лев Толстой",
+        "isbn": "9780760706138",
+        "catalog_price": 50.66,
+        "initial_stock": 3
+    },
+    {
+        "title": "The Railway Children",
+        "author": "Edith Nesbit",
+        "isbn": "9783775066617",
+        "catalog_price": 28.37,
+        "initial_stock": 11
+    },
+    {
+        "title": "History",
+        "author": "Herodotus",
+        "isbn": "9785313664941",
+        "catalog_price": 49.48,
+        "initial_stock": 18
+    },
+    {
+        "title": "Book of common prayer",
+        "author": "Church of England",
+        "isbn": "9780616331125",
+        "catalog_price": 88.53,
+        "initial_stock": 14
+    },
+    {
+        "title": "Faerie queene",
+        "author": "Edmund Spenser",
+        "isbn": "9783333454337",
+        "catalog_price": 84.09,
+        "initial_stock": 12
+    },
+    {
+        "title": "Matilda",
+        "author": "Roald Dahl",
+        "isbn": "9785871517178",
+        "catalog_price": 88.95,
+        "initial_stock": 11
+    },
+    {
+        "title": "La Poetica",
+        "author": "Aristotle",
+        "isbn": "9784396129033",
+        "catalog_price": 38.03,
+        "initial_stock": 1
+    },
+    {
+        "title": "The Silver Chair",
+        "author": "C.S. Lewis",
+        "isbn": "9788372781833",
+        "catalog_price": 74.42,
+        "initial_stock": 1
+    },
+    {
+        "title": "Kritik der reinen Vernunft",
+        "author": "Immanuel Kant",
+        "isbn": "9780620161787",
+        "catalog_price": 91.88,
+        "initial_stock": 2
+    },
+    {
+        "title": "Anthem",
+        "author": "Ayn Rand",
+        "isbn": "9782756066943",
+        "catalog_price": 31.85,
+        "initial_stock": 3
+    },
+    {
+        "title": "Guess How Much I Love You",
+        "author": "Sam McBratney",
+        "isbn": "9789612505417",
+        "catalog_price": 24.14,
+        "initial_stock": 1
+    }
+]

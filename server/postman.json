@@ -1,0 +1,117 @@
+{
+	"info": {
+		"_postman_id": "a9e8b84a-d6e8-4a6c-b3e1-73b3e2b2c8c7",
+		"name": "Bookday API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Create Book",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"title\": \"The Go Programming Language\",\n    \"author\": \"Alan A. A. Donovan\",\n    \"isbn\": \"978-0321765723\",\n    \"catalog_price\": 49.99,\n    \"initial_stock\": 10\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/books",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"books"
+					]
+				},
+				"description": "Cria um novo livro no catálogo. O `isbn` deve ser único."
+			},
+			"response": []
+		},
+		{
+			"name": "List All Books",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/books",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"books"
+					]
+				},
+				"description": "Lista todos os livros cadastrados."
+			},
+			"response": []
+		},
+		{
+			"name": "Get Book By ID",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/books/:id",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"books",
+						":id"
+					]
+				},
+				"description": "Busca um livro específico pelo seu ID."
+			},
+			"response": []
+		},
+		{
+			"name": "Create Order",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"customer_name\": \"John Doe\",\n    \"customer_address\": \"123 Main St, Anytown\",\n    \"items\": [\n        {\n            \"book_id\": \"b934b122-c7f4-4e4b-9d4e-b541a7d6e4b9\",\n            \"quantity\": 1\n        }\n    ]\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/orders",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"orders"
+					]
+				},
+				"description": "Cria um novo pedido, validando o estoque e registrando a transação."
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:3000",
+			"type": "string"
+		}
+	]
+}

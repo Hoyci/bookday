@@ -1,0 +1,1691 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+cmd/
+  api/
+    main.go
+internal/
+  catalog/
+    dto.go
+    entity.go
+    handler.go
+    interface.go
+    repository.go
+    service.go
+  config/
+    config.go
+  infra/
+    database/
+      migrate/
+        migrations/
+          000001_create_initial_tables.down.sql
+          000001_create_initial_tables.up.sql
+          20250816014826_create_orders_table.down.sql
+          20250816014826_create_orders_table.up.sql
+        migrate.go
+      model/
+        model.go
+      pg/
+        pg.go
+    logger/
+      logger.go
+  order/
+    dto.go
+    entity.go
+    handler.go
+    interface.go
+    repository.go
+    service.go
+pkg/
+  fault/
+    fault.go
+  httputil/
+    httputil.go
+  validator/
+    rules.go
+air.toml
+docker-compose.yml
+go.mod
+Makefile
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="cmd/api/main.go">
+package main
+
+import (
+	"fmt"
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/hoyci/bookday/internal/catalog"
+	"github.com/hoyci/bookday/internal/config"
+	"github.com/hoyci/bookday/internal/infra/database/pg"
+	"github.com/hoyci/bookday/internal/infra/logger"
+)
+
+func main() {
+	cfg := config.GetConfig()
+
+	appLogger := logger.NewLogger(cfg)
+	appLogger.Info("starting bookday application", "app_name", cfg.AppName, "env", cfg.Environment)
+
+	db, err := pg.NewConnection(cfg)
+	if err != nil {
+		appLogger.Fatal("could not connect to the database", "error", err)
+	}
+	appLogger.Info("database connection established")
+
+	sqlDB, err := db.DB()
+	if err != nil {
+		appLogger.Fatal("could not get underlying sql.DB from gorm", "error", err)
+	}
+	defer sqlDB.Close()
+
+	catalogRepo := catalog.NewGORMRepository(db)
+	catalogSvc := catalog.NewService(catalogRepo, appLogger)
+	catalogHandler := catalog.NewHTTPHandler(catalogSvc)
+
+	router := chi.NewRouter()
+	router.Use(middleware.Logger)
+	router.Use(middleware.Recoverer)
+
+	catalogHandler.RegisterRoutes(router)
+
+	listenAddr := fmt.Sprintf(":%d", cfg.Port)
+	appLogger.Info("server is starting", "address", listenAddr)
+	if err := http.ListenAndServe(listenAddr, router); err != nil {
+		appLogger.Fatal("failed to start server", "error", err)
+	}
+}
+</file>
+
+<file path="internal/catalog/dto.go">
+package catalog
+
+import (
+	"time"
+
+	v "github.com/go-ozzo/ozzo-validation/v4"
+	"github.com/hoyci/bookday/pkg/validator"
+)
+
+type BookDTO struct {
+	ID             string    `json:"id"`
+	Title          string    `json:"title"`
+	Author         string    `json:"author"`
+	ISBN           string    `json:"isbn"`
+	CatalogPrice   float64   `json:"catalog_price"`
+	AvailableStock int       `json:"available_stock"`
+	CreatedAt      time.Time `json:"created_at"`
+}
+
+type CreateBookDTO struct {
+	Title        string  `json:"title"`
+	Author       string  `json:"author"`
+	ISBN         string  `json:"isbn"`
+	CatalogPrice float64 `json:"catalog_price"`
+	InitialStock int     `json:"initial_stock"`
+}
+
+func (dto CreateBookDTO) Validate() error {
+	return v.ValidateStruct(&dto,
+		v.Field(&dto.Title, v.Required.Error("title is required"), v.Length(1, 255)),
+		v.Field(&dto.Author, v.Required.Error("author is required"), v.Length(1, 255)),
+		v.Field(&dto.ISBN, v.Required.Error("isbn is required"), validator.IsISBN),
+		v.Field(&dto.CatalogPrice, v.Required.Error("catalog_price is required"), v.Min(0.01)),
+		v.Field(&dto.InitialStock, v.Required.Error("initial_stock is required"), v.Min(1)),
+	)
+}
+</file>
+
+<file path="internal/catalog/entity.go">
+package catalog
+
+import (
+	"net/http"
+	"time"
+
+	v "github.com/go-ozzo/ozzo-validation/v4"
+	fault "github.com/hoyci/bookday/pkg/fault"
+	"github.com/hoyci/bookday/pkg/validator"
+)
+
+type Book struct {
+	id             string
+	title          string
+	author         string
+	isbn           string
+	catalogPrice   float64
+	availableStock int
+	createdAt      time.Time
+}
+
+func NewBook(id, title, author, isbn string, catalogPrice float64) (*Book, error) {
+	b := &Book{
+		id:           id,
+		title:        title,
+		author:       author,
+		isbn:         isbn,
+		catalogPrice: catalogPrice,
+		createdAt:    time.Now().UTC(),
+	}
+
+	if err := b.validate(); err != nil {
+		return nil, err
+	}
+
+	return b, nil
+}
+
+func (b *Book) validate() error {
+	err := v.ValidateStruct(b,
+		v.Field(&b.title, v.Required.Error("title is required"), v.Length(1, 255)),
+		v.Field(&b.author, v.Required.Error("author is required"), v.Length(1, 255)),
+		v.Field(&b.isbn, v.Required.Error("isbn is required"), validator.IsISBN),
+		v.Field(&b.catalogPrice, v.Required.Error("catalog price is required"), v.Min(0.01)),
+	)
+	if err != nil {
+		return fault.New(
+			"book entity validation failed",
+			fault.WithHTTPCode(http.StatusUnprocessableEntity),
+			fault.WithKind(fault.KindValidation),
+			fault.WithError(err),
+		)
+	}
+	return nil
+}
+
+func (b *Book) ID() string            { return b.id }
+func (b *Book) Title() string         { return b.title }
+func (b *Book) Author() string        { return b.author }
+func (b *Book) ISBN() string          { return b.isbn }
+func (b *Book) CatalogPrice() float64 { return b.catalogPrice }
+func (b *Book) AvailableStock() int   { return b.availableStock }
+func (b *Book) CreatedAt() time.Time  { return b.createdAt }
+
+func (b *Book) SetAvailableStock(count int) {
+	b.availableStock = count
+}
+</file>
+
+<file path="internal/catalog/handler.go">
+package catalog
+
+import (
+	"encoding/json"
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+	fault "github.com/hoyci/bookday/pkg/fault"
+	"github.com/hoyci/bookday/pkg/httputil"
+)
+
+type Handler struct {
+	service Service
+}
+
+func NewHTTPHandler(s Service) *Handler {
+	return &Handler{service: s}
+}
+
+func (h *Handler) RegisterRoutes(router chi.Router) {
+	router.Post("/books", h.CreateBook)
+	router.Get("/books", h.ListBooks)
+	router.Get("/books/{id}", h.GetBookByID)
+}
+
+func (h *Handler) CreateBook(w http.ResponseWriter, r *http.Request) {
+	var dto CreateBookDTO
+	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
+		httputil.RespondWithError(w, fault.New("invalid request body", fault.WithHTTPCode(http.StatusBadRequest), fault.WithError(err)))
+		return
+	}
+
+	book, err := h.service.CreateBook(r.Context(), dto)
+	if err != nil {
+		httputil.RespondWithError(w, err)
+		return
+	}
+
+	httputil.RespondWithJSON(w, http.StatusCreated, book)
+}
+
+func (h *Handler) ListBooks(w http.ResponseWriter, r *http.Request) {
+	books, err := h.service.ListAllBooks(r.Context())
+	if err != nil {
+		httputil.RespondWithError(w, err)
+		return
+	}
+
+	httputil.RespondWithJSON(w, http.StatusOK, books)
+}
+
+func (h *Handler) GetBookByID(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	if id == "" {
+		httputil.RespondWithError(w, fault.New("book id is required", fault.WithHTTPCode(http.StatusBadRequest)))
+		return
+	}
+
+	book, err := h.service.GetBookDetails(r.Context(), id)
+	if err != nil {
+		httputil.RespondWithError(w, err)
+		return
+	}
+
+	httputil.RespondWithJSON(w, http.StatusOK, book)
+}
+</file>
+
+<file path="internal/catalog/interface.go">
+package catalog
+
+import (
+	"context"
+
+	models "github.com/hoyci/bookday/internal/infra/database/model"
+)
+
+type Repository interface {
+	FindBookByID(ctx context.Context, id string) (*Book, error)
+	FindBookByISBN(ctx context.Context, isbn string) (*Book, error)
+	FindAllBooks(ctx context.Context) ([]Book, error)
+
+	CreateBookWithInitialLedger(ctx context.Context, book *Book, initialStock int) error
+	AddLedgerTransaction(ctx context.Context, tx *models.StockLedgerModel) error
+	GetAvailableStockCount(ctx context.Context, bookID string) (int, error)
+}
+
+type Service interface {
+	ListAllBooks(ctx context.Context) ([]BookDTO, error)
+	GetBookDetails(ctx context.Context, id string) (*BookDTO, error)
+	CreateBook(ctx context.Context, dto CreateBookDTO) (*BookDTO, error)
+}
+</file>
+
+<file path="internal/catalog/repository.go">
+package catalog
+
+import (
+	"context"
+	"errors"
+
+	models "github.com/hoyci/bookday/internal/infra/database/model"
+	fault "github.com/hoyci/bookday/pkg/fault"
+	"gorm.io/gorm"
+)
+
+type gormRepository struct {
+	db *gorm.DB
+}
+
+func NewGORMRepository(db *gorm.DB) Repository {
+	return &gormRepository{db: db}
+}
+
+func (r *gormRepository) CreateBookWithInitialLedger(ctx context.Context, book *Book, initialStock int) error {
+	bookModel := models.BookModel{
+		ID:           book.ID(),
+		Title:        book.Title(),
+		Author:       book.Author(),
+		ISBN:         book.ISBN(),
+		CatalogPrice: book.CatalogPrice(),
+		CreatedAt:    book.CreatedAt(),
+	}
+
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&bookModel).Error; err != nil {
+			return err
+		}
+
+		if initialStock > 0 {
+			ledgerTx := models.StockLedgerModel{
+				ID:              tx.Statement.Context.Value("transaction_id").(string),
+				BookID:          book.ID(),
+				TransactionType: "inbound",
+				Quantity:        initialStock,
+				ReferenceID:     book.ID(),
+				CreatedAt:       book.CreatedAt(),
+			}
+			if err := tx.Create(&ledgerTx).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (r *gormRepository) AddLedgerTransaction(ctx context.Context, tx *models.StockLedgerModel) error {
+	return r.db.WithContext(ctx).Create(tx).Error
+}
+
+func (r *gormRepository) GetAvailableStockCount(ctx context.Context, bookID string) (int, error) {
+	var inbound, outbound int
+
+	result := r.db.WithContext(ctx).Model(&models.StockLedgerModel{}).
+		Where("book_id = ? AND transaction_type = 'inbound'", bookID).
+		Select("COALESCE(SUM(quantity), 0)").
+		Scan(&inbound)
+
+	if result.Error != nil {
+		return 0, fault.New("failed to query inbound stock", fault.WithError(result.Error), fault.WithHTTPCode(500))
+	}
+
+	result = r.db.WithContext(ctx).Model(&models.StockLedgerModel{}).
+		Where("book_id = ? AND transaction_type = 'outbound'", bookID).
+		Select("COALESCE(SUM(quantity), 0)").
+		Scan(&outbound)
+
+	if result.Error != nil {
+		return 0, fault.New("failed to query outbound stock", fault.WithError(result.Error), fault.WithHTTPCode(500))
+	}
+
+	return inbound - outbound, nil
+}
+
+func (r *gormRepository) FindBookByID(ctx context.Context, id string) (*Book, error) {
+	var bookModel models.BookModel
+	result := r.db.WithContext(ctx).First(&bookModel, "id = ?", id)
+
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, fault.New("book not found", fault.WithKind(fault.KindNotFound))
+		}
+		return nil, fault.New("failed to find book by ID", fault.WithError(result.Error), fault.WithHTTPCode(500))
+	}
+
+	bookEntity, _ := NewBook(bookModel.ID, bookModel.Title, bookModel.Author, bookModel.ISBN, bookModel.CatalogPrice)
+
+	stock, err := r.GetAvailableStockCount(ctx, bookModel.ID)
+	if err != nil {
+		return nil, err
+	}
+	bookEntity.SetAvailableStock(stock)
+
+	return bookEntity, nil
+}
+
+func (r *gormRepository) FindBookByISBN(ctx context.Context, isbn string) (*Book, error) {
+	var bookModel models.BookModel
+	result := r.db.WithContext(ctx).First(&bookModel, "isbn = ?", isbn)
+
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, fault.New("book not found", fault.WithKind(fault.KindNotFound))
+		}
+		return nil, fault.New("failed to find book by ISBN", fault.WithError(result.Error), fault.WithHTTPCode(500))
+	}
+
+	bookEntity, _ := NewBook(bookModel.ID, bookModel.Title, bookModel.Author, bookModel.ISBN, bookModel.CatalogPrice)
+
+	stock, err := r.GetAvailableStockCount(ctx, bookModel.ID)
+	if err != nil {
+		return nil, err
+	}
+	bookEntity.SetAvailableStock(stock)
+
+	return bookEntity, nil
+}
+
+func (r *gormRepository) FindAllBooks(ctx context.Context) ([]Book, error) {
+	var bookModels []models.BookModel
+	result := r.db.WithContext(ctx).
+		Order("title asc").
+		Find(&bookModels)
+
+	if result.Error != nil {
+		return nil, fault.New("failed to find all books", fault.WithError(result.Error), fault.WithHTTPCode(500))
+	}
+
+	var books []Book
+	for _, m := range bookModels {
+		bookEntity, _ := NewBook(m.ID, m.Title, m.Author, m.ISBN, m.CatalogPrice)
+
+		stock, err := r.GetAvailableStockCount(ctx, m.ID)
+		if err != nil {
+			return nil, err
+		}
+		bookEntity.SetAvailableStock(stock)
+		books = append(books, *bookEntity)
+	}
+
+	return books, nil
+}
+</file>
+
+<file path="internal/catalog/service.go">
+package catalog
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net/http"
+
+	"github.com/charmbracelet/log"
+	"github.com/google/uuid"
+	"github.com/hoyci/bookday/pkg/fault"
+)
+
+type service struct {
+	repo Repository
+	log  *log.Logger
+}
+
+func NewService(repo Repository, logger *log.Logger) Service {
+	return &service{
+		repo: repo,
+		log:  logger,
+	}
+}
+
+func (s *service) CreateBook(ctx context.Context, dto CreateBookDTO) (*BookDTO, error) {
+	s.log.Info("starting book creation process", "isbn", dto.ISBN, "title", dto.Title)
+
+	if err := dto.Validate(); err != nil {
+		s.log.Warn("validation failed for create book DTO", "error", err)
+		return nil, fault.New(
+			"invalid input for create book",
+			fault.WithHTTPCode(http.StatusBadRequest),
+			fault.WithKind(fault.KindValidation),
+			fault.WithError(err),
+		)
+	}
+
+	existingBook, err := s.repo.FindBookByISBN(ctx, dto.ISBN)
+	if err != nil {
+		var f *fault.Error
+		if !errors.As(err, &f) || f.Kind != fault.KindNotFound {
+			s.log.Error("failed to check if book already exists", "error", err)
+			return nil, fault.New("unexpected database error", fault.WithHTTPCode(http.StatusInternalServerError), fault.WithError(err))
+		}
+	}
+
+	if existingBook != nil {
+		s.log.Warn("attempted to create a book with an existing ISBN", "isbn", dto.ISBN)
+		return nil, fault.New(
+			fmt.Sprintf("book with ISBN %s already exists", dto.ISBN),
+			fault.WithHTTPCode(http.StatusConflict),
+			fault.WithKind(fault.KindConflict),
+		)
+	}
+
+	bookID := uuid.NewString()
+	book, err := NewBook(bookID, dto.Title, dto.Author, dto.ISBN, dto.CatalogPrice)
+	if err != nil {
+		s.log.Error("failed to create book entity", "error", err)
+		return nil, err
+	}
+
+	transactionID := uuid.NewString()
+	ctxWithTxID := context.WithValue(ctx, "transaction_id", transactionID)
+
+	if err := s.repo.CreateBookWithInitialLedger(ctxWithTxID, book, dto.InitialStock); err != nil {
+		s.log.Error("failed to persist book and initial stock ledger entry", "error", err)
+		return nil, fault.New("failed to save book and initial stock", fault.WithHTTPCode(http.StatusInternalServerError), fault.WithError(err))
+	}
+
+	s.log.Info("book created successfully with initial stock ledger entry", "book_id", book.ID(), "initial_stock", dto.InitialStock)
+
+	book.SetAvailableStock(dto.InitialStock)
+	return toBookDTO(book), nil
+}
+
+func (s *service) ListAllBooks(ctx context.Context) ([]BookDTO, error) {
+	s.log.Info("listing all books")
+	books, err := s.repo.FindAllBooks(ctx)
+	if err != nil {
+		s.log.Error("failed to find all books", "error", err)
+		return nil, fault.New("unexpected database error", fault.WithHTTPCode(http.StatusInternalServerError), fault.WithError(err))
+	}
+	var dtos []BookDTO
+	for _, b := range books {
+		dtos = append(dtos, *toBookDTO(&b))
+	}
+	return dtos, nil
+}
+
+func (s *service) GetBookDetails(ctx context.Context, id string) (*BookDTO, error) {
+	s.log.Info("getting book details", "book_id", id)
+	book, err := s.repo.FindBookByID(ctx, id)
+	if err != nil {
+		var f *fault.Error
+		if errors.As(err, &f) && f.Kind == fault.KindNotFound {
+			return nil, fault.New("book not found", fault.WithHTTPCode(http.StatusNotFound), fault.WithKind(fault.KindNotFound))
+		}
+		s.log.Error("failed to find book by id", "book_id", id, "error", err)
+		return nil, fault.New("unexpected database error", fault.WithHTTPCode(http.StatusInternalServerError), fault.WithError(err))
+	}
+	return toBookDTO(book), nil
+}
+
+func toBookDTO(b *Book) *BookDTO {
+	return &BookDTO{
+		ID:             b.ID(),
+		Title:          b.Title(),
+		Author:         b.Author(),
+		ISBN:           b.ISBN(),
+		CatalogPrice:   b.CatalogPrice(),
+		AvailableStock: b.AvailableStock(),
+		CreatedAt:      b.CreatedAt(),
+	}
+}
+</file>
+
+<file path="internal/config/config.go">
+package config
+
+import (
+	"log"
+	"sync"
+
+	"github.com/spf13/viper"
+)
+
+var (
+	config *Config
+	once   sync.Once
+)
+
+type Config struct {
+	Port        int    `mapstructure:"APP_PORT"`
+	Environment string `mapstructure:"APP_ENV"`
+	AppName     string `mapstructure:"APP_NAME"`
+	Debug       bool   `mapstructure:"DEBUG"`
+
+	DBUsername string `mapstructure:"DB_USERNAME"`
+	DBPassword string `mapstructure:"DB_PASSWORD"`
+	DBHost     string `mapstructure:"DB_HOST"`
+	DBPort     string `mapstructure:"DB_PORT"`
+	DBDatabase string `mapstructure:"DB_DATABASE"`
+
+	StorageURL        string `mapstructure:"STORAGE_URL"`
+	StorageAccessKey  string `mapstructure:"STORAGE_ACCESS_KEY"`
+	StorageSecretKey  string `mapstructure:"STORAGE_SECRET_KEY"`
+	StorageBucketName string `mapstructure:"STORAGE_BUCKET_NAME"`
+}
+
+func GetConfig() *Config {
+	once.Do(func() {
+		viper.SetConfigName(".env")
+		viper.SetConfigType("env")
+		viper.AddConfigPath(".")
+		viper.AutomaticEnv()
+
+		if err := viper.ReadInConfig(); err != nil {
+			log.Fatalf("error reading config file, %s", err)
+		}
+
+		if err := viper.Unmarshal(&config); err != nil {
+			log.Fatalf("error unmarshalling config, %s", err)
+		}
+	})
+
+	return config
+}
+</file>
+
+<file path="internal/infra/database/migrate/migrations/000001_create_initial_tables.down.sql">
+DROP TABLE IF EXISTS stock_items;
+DROP TABLE IF EXISTS books;
+</file>
+
+<file path="internal/infra/database/migrate/migrations/000001_create_initial_tables.up.sql">
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+CREATE TABLE books (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title VARCHAR(255) NOT NULL,
+    author VARCHAR(255) NOT NULL,
+    isbn VARCHAR(20) NOT NULL UNIQUE,
+    catalog_price NUMERIC(10, 2) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE stock_ledger (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    book_id UUID NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+    transaction_type VARCHAR(50) NOT NULL,
+    quantity INT NOT NULL CHECK (quantity > 0),
+    reference_id UUID,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_stock_ledger_book_id ON stock_ledger(book_id);
+CREATE INDEX idx_stock_ledger_reference_id ON stock_ledger(reference_id);
+</file>
+
+<file path="internal/infra/database/migrate/migrations/20250816014826_create_orders_table.down.sql">
+DROP TABLE IF EXISTS order_items;
+DROP TABLE IF EXISTS orders;
+DROP TYPE IF EXISTS order_status;
+</file>
+
+<file path="internal/infra/database/migrate/migrations/20250816014826_create_orders_table.up.sql">
+CREATE TABLE orders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_name VARCHAR(255) NOT NULL,
+    customer_address TEXT NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'awaiting_shipment',
+    total_price NUMERIC(10, 2) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE order_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    book_id UUID NOT NULL REFERENCES books(id),
+    quantity INT NOT NULL CHECK (quantity > 0),
+    price_at_purchase NUMERIC(10, 2) NOT NULL
+);
+
+CREATE INDEX idx_orders_status ON orders(status);
+CREATE INDEX idx_order_items_order_id ON order_items(order_id);
+</file>
+
+<file path="internal/infra/database/migrate/migrate.go">
+package main
+
+import (
+	"database/sql"
+	"fmt"
+	"log"
+	"os"
+
+	"github.com/golang-migrate/migrate/v4"
+	pgMigrate "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/hoyci/bookday/internal/config"
+	_ "github.com/lib/pq"
+)
+
+func main() {
+	cfg := config.GetConfig()
+
+	dsn := fmt.Sprintf(
+		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		cfg.DBUsername, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBDatabase,
+	)
+	db, err := sql.Open("postgres", dsn)
+	if err != nil {
+		log.Fatalf("Failed to connect to the database: %v", err)
+	}
+	defer db.Close()
+
+	driver, err := pgMigrate.WithInstance(db, &pgMigrate.Config{})
+	if err != nil {
+		log.Fatalf("Error creating migrate driver: %v", err)
+	}
+
+	m, err := migrate.NewWithDatabaseInstance(
+		"file://internal/infra/database/migrate/migrations",
+		cfg.DBDatabase,
+		driver,
+	)
+	if err != nil {
+		log.Fatalf("Error creating migrate instance: %v", err)
+	}
+
+	cmd := os.Args[len(os.Args)-1]
+	switch cmd {
+	case "up":
+		if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+			log.Fatalf("Migration up failed: %v", err)
+		}
+		log.Println("Migrations applied successfully.")
+	case "down":
+		if err := m.Down(); err != nil && err != migrate.ErrNoChange {
+			log.Fatalf("Migration down failed: %v", err)
+		}
+		log.Println("Migrations reverted successfully.")
+	default:
+		log.Println("No command provided. Use 'up' or 'down'.")
+	}
+}
+</file>
+
+<file path="internal/infra/database/model/model.go">
+// Package model defines the GORM data structures that map to the database schema.
+package models
+
+import "time"
+
+type StockLedgerTransactionType string
+
+const (
+	TransactionTypeInbound  StockLedgerTransactionType = "inbound"  // Entrada de estoque
+	TransactionTypeOutbound StockLedgerTransactionType = "outbound" // Saída de estoque
+)
+
+type StockLedgerModel struct {
+	ID              string `gorm:"type:uuid;primary_key"`
+	BookID          string `gorm:"type:uuid"`
+	TransactionType StockLedgerTransactionType
+	Quantity        int
+	ReferenceID     string `gorm:"type:uuid"`
+	CreatedAt       time.Time
+}
+
+func (StockLedgerModel) TableName() string {
+	return "stock_ledger"
+}
+
+type OrderStatus string
+
+const (
+	StatusAwaitingShipment OrderStatus = "awaiting_shipment"
+	StatusOutForDelivery   OrderStatus = "out_for_delivery"
+	StatusDelivered        OrderStatus = "delivered"
+	StatusDeliveryFailed   OrderStatus = "delivery_failed"
+)
+
+type OrderModel struct {
+	ID              string `gorm:"type:uuid;primary_key"`
+	CustomerName    string
+	CustomerAddress string
+	Status          OrderStatus `gorm:"type:order_status"`
+	TotalPrice      float64
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	Items           []OrderItemModel `gorm:"foreignKey:OrderID"`
+}
+
+func (OrderModel) TableName() string {
+	return "orders"
+}
+
+type OrderItemModel struct {
+	ID           string `gorm:"type:uuid;primary_key"`
+	OrderID      string `gorm:"type:uuid"`
+	BookID       string `gorm:"type:uuid"`
+	Quantity     int
+	PricePerUnit float64
+}
+
+func (OrderItemModel) TableName() string {
+	return "order_items"
+}
+
+type BookModel struct {
+	ID           string `gorm:"type:uuid;primary_key"`
+	Title        string
+	Author       string
+	ISBN         string
+	CatalogPrice float64
+	CreatedAt    time.Time
+}
+
+func (BookModel) TableName() string {
+	return "books"
+}
+</file>
+
+<file path="internal/infra/database/pg/pg.go">
+package pg
+
+import (
+	"fmt"
+
+	"github.com/hoyci/bookday/internal/config"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+)
+
+type Database struct {
+	db *gorm.DB
+}
+
+func NewConnection(cfg *config.Config) (*gorm.DB, error) {
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=America/Sao_Paulo",
+		cfg.DBHost,
+		cfg.DBUsername,
+		cfg.DBPassword,
+		cfg.DBDatabase,
+		cfg.DBPort,
+	)
+
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to database using gorm: %w", err)
+	}
+
+	sqlDB, err := db.DB()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get underlying sql.DB: %w", err)
+	}
+
+	if err := sqlDB.Ping(); err != nil {
+		return nil, fmt.Errorf("failed to ping database: %w", err)
+	}
+
+	return db, nil
+}
+</file>
+
+<file path="internal/infra/logger/logger.go">
+package logger
+
+import (
+	"os"
+	"time"
+
+	"github.com/charmbracelet/log"
+	"github.com/hoyci/bookday/internal/config"
+)
+
+func NewLogger(cfg *config.Config) *log.Logger {
+	logger := log.NewWithOptions(
+		os.Stdout,
+		log.Options{
+			TimeFormat:      time.Kitchen,
+			Formatter:       log.JSONFormatter,
+			ReportTimestamp: true,
+		},
+	)
+
+	if cfg.Debug {
+		logger.SetLevel(log.DebugLevel)
+		logger.SetReportCaller(true)
+	}
+
+	if cfg.Environment == "development" {
+		logger.SetFormatter(log.TextFormatter)
+	}
+
+	return logger
+}
+</file>
+
+<file path="internal/order/dto.go">
+package order
+
+import (
+	"time"
+
+	v "github.com/go-ozzo/ozzo-validation/v4"
+)
+
+type OrderDTO struct {
+	ID              string         `json:"id"`
+	CustomerName    string         `json:"customer_name"`
+	CustomerAddress string         `json:"customer_address"`
+	Status          string         `json:"status"`
+	TotalPrice      float64        `json:"total_price"`
+	CreatedAt       time.Time      `json:"created_at"`
+	Items           []OrderItemDTO `json:"items"`
+}
+
+type OrderItemDTO struct {
+	BookID          string  `json:"book_id"`
+	Quantity        int     `json:"quantity"`
+	PriceAtPurchase float64 `json:"price_at_purchase"`
+}
+
+type CreateOrderDTO struct {
+	CustomerName    string               `json:"customer_name"`
+	CustomerAddress string               `json:"customer_address"`
+	Items           []CreateOrderItemDTO `json:"items"`
+}
+
+type CreateOrderItemDTO struct {
+	BookID   string `json:"book_id"`
+	Quantity int    `json:"quantity"`
+}
+
+func (dto CreateOrderDTO) Validate() error {
+	return v.ValidateStruct(&dto,
+		v.Field(&dto.CustomerName, v.Required, v.Length(3, 100)),
+		v.Field(&dto.CustomerAddress, v.Required, v.Length(10, 255)),
+		v.Field(&dto.Items, v.Required, v.Length(1, 0)), // Pelo menos 1 item
+		v.Field(&dto.Items), // Valida cada item na lista
+	)
+}
+
+func (dto CreateOrderItemDTO) Validate() error {
+	return v.ValidateStruct(&dto,
+		v.Field(&dto.BookID, v.Required),
+		v.Field(&dto.Quantity, v.Required, v.Min(1)),
+	)
+}
+</file>
+
+<file path="internal/order/entity.go">
+package order
+
+import (
+	"time"
+
+	models "github.com/hoyci/bookday/internal/infra/database/model"
+)
+
+type Order struct {
+	id              string
+	customerName    string
+	customerAddress string
+	status          models.OrderStatus
+	totalPrice      float64
+	createdAt       time.Time
+	items           []*OrderItem
+}
+
+type OrderItem struct {
+	id              string
+	orderID         string
+	bookID          string
+	quantity        int
+	priceAtPurchase float64
+}
+
+func NewOrder(id, customerName, customerAddress string, totalPrice float64, items []*OrderItem) (*Order, error) {
+	order := &Order{
+		id:              id,
+		customerName:    customerName,
+		customerAddress: customerAddress,
+		status:          models.StatusAwaitingShipment,
+		totalPrice:      totalPrice,
+		createdAt:       time.Now().UTC(),
+		items:           items,
+	}
+	return order, nil
+}
+
+func NewOrderItem(id, orderID, bookID string, quantity int, priceAtPurchase float64) (*OrderItem, error) {
+	item := &OrderItem{
+		id:              id,
+		orderID:         orderID,
+		bookID:          bookID,
+		quantity:        quantity,
+		priceAtPurchase: priceAtPurchase,
+	}
+	return item, nil
+}
+func (o *Order) ID() string                 { return o.id }
+func (o *Order) CustomerName() string       { return o.customerName }
+func (o *Order) CustomerAddress() string    { return o.customerAddress }
+func (o *Order) Status() models.OrderStatus { return o.status }
+func (o *Order) TotalPrice() float64        { return o.totalPrice }
+func (o *Order) CreatedAt() time.Time       { return o.createdAt }
+func (o *Order) Items() []*OrderItem        { return o.items }
+
+func (oi *OrderItem) ID() string               { return oi.id }
+func (oi *OrderItem) OrderID() string          { return oi.orderID }
+func (oi *OrderItem) BookID() string           { return oi.bookID }
+func (oi *OrderItem) Quantity() int            { return oi.quantity }
+func (oi *OrderItem) PriceAtPurchase() float64 { return oi.priceAtPurchase }
+</file>
+
+<file path="internal/order/handler.go">
+package order
+
+import (
+	"encoding/json"
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/hoyci/bookday/pkg/fault"
+	"github.com/hoyci/bookday/pkg/httputil"
+)
+
+type Handler struct {
+	service Service
+}
+
+func NewHTTPHandler(s Service) *Handler {
+	return &Handler{service: s}
+}
+
+func (h *Handler) RegisterRoutes(router chi.Router) {
+	router.Post("/orders", h.CreateOrder)
+}
+
+func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
+	var dto CreateOrderDTO
+	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
+		httputil.RespondWithError(w, fault.New("invalid request body", fault.WithHTTPCode(http.StatusBadRequest)))
+		return
+	}
+
+	order, err := h.service.CreateOrder(r.Context(), dto)
+	if err != nil {
+		httputil.RespondWithError(w, err)
+		return
+	}
+
+	httputil.RespondWithJSON(w, http.StatusCreated, order)
+}
+</file>
+
+<file path="internal/order/interface.go">
+package order
+
+import (
+	"context"
+	"errors"
+
+	models "github.com/hoyci/bookday/internal/infra/database/model"
+)
+
+var ErrNotFound = errors.New("order not found")
+
+type Repository interface {
+	CreateOrderInTx(ctx context.Context, order *Order) error
+	FindOrderByID(ctx context.Context, id string) (*Order, error)
+	UpdateOrderStatus(ctx context.Context, id string, status models.OrderStatus) error
+}
+
+type Service interface {
+	CreateOrder(ctx context.Context, dto CreateOrderDTO) (*OrderDTO, error)
+	GetOrderDetails(ctx context.Context, id string) (*OrderDTO, error)
+}
+</file>
+
+<file path="internal/order/repository.go">
+package order
+
+import (
+	"context"
+	"errors"
+
+	"github.com/google/uuid"
+	models "github.com/hoyci/bookday/internal/infra/database/model"
+	"github.com/hoyci/bookday/pkg/fault"
+	"gorm.io/gorm"
+)
+
+type gormRepository struct {
+	db *gorm.DB
+}
+
+func NewGORMRepository(db *gorm.DB) Repository {
+	return &gormRepository{db: db}
+}
+
+func (r *gormRepository) CreateOrderInTx(ctx context.Context, order *Order) error {
+	orderModel := models.OrderModel{
+		ID:              order.ID(),
+		CustomerName:    order.CustomerName(),
+		CustomerAddress: order.CustomerAddress(),
+		Status:          models.OrderStatus(order.Status()),
+		TotalPrice:      order.TotalPrice(),
+		CreatedAt:       order.CreatedAt(),
+	}
+
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&orderModel).Error; err != nil {
+			return err
+		}
+
+		for _, item := range order.Items() {
+			orderItemModel := models.OrderItemModel{
+				ID:           uuid.NewString(),
+				OrderID:      order.ID(),
+				BookID:       item.BookID(),
+				Quantity:     item.Quantity(),
+				PricePerUnit: item.PriceAtPurchase(),
+			}
+			if err := tx.Create(&orderItemModel).Error; err != nil {
+				return err
+			}
+
+			ledgerTx := models.StockLedgerModel{
+				ID:              uuid.NewString(),
+				BookID:          item.BookID(),
+				TransactionType: models.TransactionTypeOutbound,
+				Quantity:        item.Quantity(),
+				ReferenceID:     order.ID(),
+			}
+			if err := tx.Create(&ledgerTx).Error; err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+}
+
+func (r *gormRepository) FindOrderByID(ctx context.Context, id string) (*Order, error) {
+	var orderModel models.OrderModel
+	result := r.db.WithContext(ctx).Preload("Items").First(&orderModel, "id = ?", id)
+
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, fault.New("order not found", fault.WithKind(fault.KindNotFound))
+		}
+		return nil, result.Error
+	}
+
+	var orderItems []*OrderItem
+	for _, itemModel := range orderModel.Items {
+		item, _ := NewOrderItem(itemModel.ID, itemModel.OrderID, itemModel.BookID, itemModel.Quantity, itemModel.PricePerUnit)
+		orderItems = append(orderItems, item)
+	}
+
+	order, _ := NewOrder(orderModel.ID, orderModel.CustomerName, orderModel.CustomerAddress, orderModel.TotalPrice, orderItems)
+
+	return order, nil
+}
+
+func (r *gormRepository) UpdateOrderStatus(ctx context.Context, id string, status models.OrderStatus) error {
+	result := r.db.WithContext(ctx).Model(&models.OrderModel{}).Where("id = ?", id).Update("status", status)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return fault.New("order not found for update", fault.WithKind(fault.KindNotFound))
+	}
+	return nil
+}
+</file>
+
+<file path="internal/order/service.go">
+package order
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net/http"
+
+	"github.com/charmbracelet/log"
+	"github.com/google/uuid"
+	"github.com/hoyci/bookday/internal/catalog"
+	"github.com/hoyci/bookday/pkg/fault"
+)
+
+type service struct {
+	orderRepo   Repository
+	catalogRepo catalog.Repository // Dependência injetada
+	log         *log.Logger
+}
+
+func NewService(orderRepo Repository, catalogRepo catalog.Repository, logger *log.Logger) Service {
+	return &service{
+		orderRepo:   orderRepo,
+		catalogRepo: catalogRepo,
+		log:         logger,
+	}
+}
+
+func (s *service) CreateOrder(ctx context.Context, dto CreateOrderDTO) (*OrderDTO, error) {
+	s.log.Info("starting order creation process", "customer", dto.CustomerName)
+	if err := dto.Validate(); err != nil {
+		return nil, fault.New("invalid order data", fault.WithHTTPCode(http.StatusBadRequest), fault.WithError(err))
+	}
+
+	var total float64
+	var orderItems []*OrderItem
+	booksToVerify := make(map[string]int) // Mapa para verificar o estoque total de cada livro
+
+	for _, itemDTO := range dto.Items {
+		booksToVerify[itemDTO.BookID] += itemDTO.Quantity
+	}
+
+	for bookID, quantity := range booksToVerify {
+		stock, err := s.catalogRepo.GetAvailableStockCount(ctx, bookID)
+		if err != nil {
+			s.log.Error("failed to get stock for book", "book_id", bookID, "error", err)
+			return nil, fault.New("failed to verify stock", fault.WithHTTPCode(http.StatusInternalServerError))
+		}
+		if stock < quantity {
+			s.log.Warn("insufficient stock for order", "book_id", bookID, "needed", quantity, "available", stock)
+			return nil, fault.New(fmt.Sprintf("insufficient stock for book %s", bookID), fault.WithHTTPCode(http.StatusConflict))
+		}
+	}
+
+	for _, itemDTO := range dto.Items {
+		book, err := s.catalogRepo.FindBookByID(ctx, itemDTO.BookID)
+		if err != nil {
+			return nil, err // O erro já vem formatado
+		}
+		price := book.CatalogPrice()
+		total += price * float64(itemDTO.Quantity)
+		item, _ := NewOrderItem(uuid.NewString(), "", book.ID(), itemDTO.Quantity, price)
+		orderItems = append(orderItems, item)
+	}
+
+	order, _ := NewOrder(uuid.NewString(), dto.CustomerName, dto.CustomerAddress, total, orderItems)
+
+	if err := s.orderRepo.CreateOrderInTx(ctx, order); err != nil {
+		s.log.Error("failed to create order transaction", "error", err)
+		return nil, fault.New("could not complete order", fault.WithHTTPCode(http.StatusInternalServerError))
+	}
+
+	s.log.Info("order created successfully", "order_id", order.ID())
+	return toOrderDTO(order), nil
+}
+
+func (s *service) GetOrderDetails(ctx context.Context, id string) (*OrderDTO, error) {
+	s.log.Info("getting order details", "order_id", id)
+	order, err := s.orderRepo.FindOrderByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil, fault.New("order not found", fault.WithHTTPCode(http.StatusNotFound), fault.WithKind(fault.KindNotFound))
+		}
+		s.log.Error("failed to find order by id", "order_id", id, "error", err)
+		return nil, fault.New("unexpected database error", fault.WithHTTPCode(http.StatusInternalServerError), fault.WithError(err))
+	}
+	return toOrderDTO(order), nil
+}
+
+func toOrderDTO(order *Order) *OrderDTO {
+	itemDTOs := make([]OrderItemDTO, 0, len(order.Items()))
+	for _, item := range order.Items() {
+		itemDTOs = append(itemDTOs, OrderItemDTO{
+			BookID:          item.BookID(),
+			Quantity:        item.Quantity(),
+			PriceAtPurchase: item.PriceAtPurchase(),
+		})
+	}
+
+	return &OrderDTO{
+		ID:              order.ID(),
+		CustomerName:    order.CustomerName(),
+		CustomerAddress: order.CustomerAddress(),
+		Status:          string(order.Status()),
+		TotalPrice:      order.TotalPrice(),
+		CreatedAt:       order.CreatedAt(),
+		Items:           itemDTOs,
+	}
+}
+</file>
+
+<file path="pkg/fault/fault.go">
+// Package fault implements a custom error type that enhances the standard Go error
+// by allowing the inclusion of additional context, such as HTTP status codes
+// and categorical kinds, to facilitate more robust error handling across different
+// application layers.
+package fault
+
+import "fmt"
+
+type Error struct {
+	Message string
+	Code    int
+	Kind    string
+	Err     error
+}
+
+func (e *Error) Error() string {
+	if e.Err != nil {
+		return fmt.Sprintf("message: %s, kind: %s, original_error: %v", e.Message, e.Kind, e.Err)
+	}
+	return fmt.Sprintf("message: %s, kind: %s", e.Message, e.Kind)
+}
+
+func (e *Error) Unwrap() error {
+	return e.Err
+}
+
+type Option func(*Error)
+
+func New(message string, options ...Option) *Error {
+	err := &Error{
+		Message: message,
+	}
+	for _, opt := range options {
+		opt(err)
+	}
+	return err
+}
+
+func WithHTTPCode(code int) Option {
+	return func(e *Error) {
+		e.Code = code
+	}
+}
+
+func WithKind(kind string) Option {
+	return func(e *Error) {
+		e.Kind = kind
+	}
+}
+
+func WithError(err error) Option {
+	return func(e *Error) {
+		e.Err = err
+	}
+}
+
+const (
+	KindNotFound        = "NotFound"
+	KindValidation      = "Validation"
+	KindUnexpected      = "Unexpected"
+	KindConflict        = "Conflict"
+	KindUnauthenticated = "Unauthenticated"
+	KindForbidden       = "Forbidden"
+)
+</file>
+
+<file path="pkg/httputil/httputil.go">
+// Package httputil provides utility functions for handling common web-related tasks,
+// such as writing standardized JSON responses and handling errors.
+package httputil
+
+import (
+	"encoding/json"
+	"errors"
+	"net/http"
+
+	"github.com/hoyci/bookday/pkg/fault"
+)
+
+func RespondWithError(w http.ResponseWriter, err error) {
+	var f *fault.Error
+	if errors.As(err, &f) {
+		RespondWithJSON(w, f.Code, map[string]string{"error": f.Message})
+		return
+	}
+	RespondWithJSON(w, http.StatusInternalServerError, map[string]string{"error": "an unexpected error occurred"})
+}
+
+func RespondWithJSON(w http.ResponseWriter, code int, payload any) {
+	response, err := json.Marshal(payload)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`{"error": "Error marshaling JSON response"}`))
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	w.Write(response)
+}
+</file>
+
+<file path="pkg/validator/rules.go">
+// Package validator provides custom, reusable validation rules for the application.
+package validator
+
+import (
+	"errors"
+	"regexp"
+	"strconv"
+	"strings"
+)
+
+var (
+	IsISBN    = &isbnRule{message: "must be a valid ISBN-10 or ISBN-13"}
+	isbnRegex = regexp.MustCompile(`[^0-9X]`)
+)
+
+type isbnRule struct {
+	message string
+}
+
+func (r *isbnRule) Validate(value any) error {
+	isbn, ok := value.(string)
+	if !ok {
+		return errors.New("must be a string")
+	}
+
+	cleanISBN := strings.ToUpper(isbnRegex.ReplaceAllString(isbn, ""))
+
+	switch len(cleanISBN) {
+	case 10:
+		if r.validateISBN10(cleanISBN) {
+			return nil
+		}
+	case 13:
+		if r.validateISBN13(cleanISBN) {
+			return nil
+		}
+	}
+	return errors.New(r.message)
+}
+
+func (r *isbnRule) Error(message string) *isbnRule {
+	return &isbnRule{message: message}
+}
+
+func (r *isbnRule) validateISBN10(isbn string) bool {
+	var sum int
+	for i := 0; i < 9; i++ {
+		digit, err := strconv.Atoi(string(isbn[i]))
+		if err != nil {
+			return false
+		}
+		sum += digit * (i + 1)
+	}
+
+	checksum := sum % 11
+	lastChar := string(isbn[9])
+
+	if checksum == 10 {
+		return lastChar == "X"
+	}
+	return strconv.Itoa(checksum) == lastChar
+}
+
+func (r *isbnRule) validateISBN13(isbn string) bool {
+	var sum int
+	for i := 0; i < 12; i++ {
+		digit, err := strconv.Atoi(string(isbn[i]))
+		if err != nil {
+			return false
+		}
+		if (i+1)%2 == 0 {
+			sum += digit * 3
+		} else {
+			sum += digit
+		}
+	}
+
+	checksum := (10 - (sum % 10)) % 10
+	lastDigit, err := strconv.Atoi(string(isbn[12]))
+	if err != nil {
+		return false
+	}
+
+	return checksum == lastDigit
+}
+</file>
+
+<file path="air.toml">
+root = "."
+testdata_dir = "testdata"
+tmp_dir = "tmp"
+
+[build]
+args_bin = []
+bin = "tmp/app"
+cmd = "go build -o tmp/app ./cmd/api"
+delay = 1000
+exclude_dir = ["./internal/cart", "tmp"]
+exclude_file = []
+exclude_regex = ["_test.go"]
+exclude_unchanged = false
+follow_symlink = false
+full_bin = ""
+include_dir = []
+include_ext = ["go", "tpl", "tmpl", "html"]
+include_file = []
+kill_delay = "0s"
+log = "build-errors.log"
+poll = false
+poll_interval = 0
+post_cmd = []
+pre_cmd = []
+rerun = false
+rerun_delay = 500
+send_interrupt = false
+stop_on_error = false
+
+[color]
+app = ""
+build = "yellow"
+main = "magenta"
+runner = "green"
+watcher = "cyan"
+
+[log]
+main_only = false
+time = false
+
+[misc]
+clean_on_exit = false
+
+[screen]
+clear_on_rebuild = false
+keep_scroll = true
+</file>
+
+<file path="docker-compose.yml">
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_DATABASE} 
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - postgres_volume:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "sh -c 'pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE}'"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - application-net
+
+volumes:
+  postgres_volume:
+
+networks:
+  application-net:
+</file>
+
+<file path="go.mod">
+module github.com/hoyci/bookday
+
+go 1.24.5
+
+require (
+	github.com/go-ozzo/ozzo-validation/v4 v4.3.0
+	gorm.io/gorm v1.30.1
+)
+
+require (
+	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
+	github.com/charmbracelet/colorprofile v0.2.3-0.20250311203215-f60798e515dc // indirect
+	github.com/charmbracelet/lipgloss v1.1.0 // indirect
+	github.com/charmbracelet/x/ansi v0.8.0 // indirect
+	github.com/charmbracelet/x/cellbuf v0.0.13-0.20250311204145-2c3ea96c31dd // indirect
+	github.com/charmbracelet/x/term v0.2.1 // indirect
+	github.com/fsnotify/fsnotify v1.8.0 // indirect
+	github.com/go-logfmt/logfmt v0.6.0 // indirect
+	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
+	github.com/hashicorp/errwrap v1.1.0 // indirect
+	github.com/hashicorp/go-multierror v1.1.1 // indirect
+	github.com/jackc/pgpassfile v1.0.0 // indirect
+	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
+	github.com/jackc/pgx/v5 v5.6.0 // indirect
+	github.com/jackc/puddle/v2 v2.2.2 // indirect
+	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/mattn/go-runewidth v0.0.16 // indirect
+	github.com/muesli/termenv v0.16.0 // indirect
+	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
+	github.com/rivo/uniseg v0.4.7 // indirect
+	github.com/sagikazarmark/locafero v0.7.0 // indirect
+	github.com/sourcegraph/conc v0.3.0 // indirect
+	github.com/spf13/afero v1.12.0 // indirect
+	github.com/spf13/cast v1.7.1 // indirect
+	github.com/spf13/pflag v1.0.6 // indirect
+	github.com/subosito/gotenv v1.6.0 // indirect
+	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
+	go.uber.org/atomic v1.9.0 // indirect
+	go.uber.org/multierr v1.9.0 // indirect
+	golang.org/x/crypto v0.36.0 // indirect
+	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
+	golang.org/x/sync v0.12.0 // indirect
+	golang.org/x/sys v0.31.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
+)
+
+require (
+	github.com/charmbracelet/log v0.4.2
+	github.com/go-chi/chi/v5 v5.2.2
+	github.com/golang-migrate/migrate/v4 v4.18.3
+	github.com/google/uuid v1.6.0
+	github.com/jinzhu/inflection v1.0.0 // indirect
+	github.com/jinzhu/now v1.1.5 // indirect
+	github.com/jmoiron/sqlx v1.4.0
+	github.com/lib/pq v1.10.9
+	github.com/spf13/viper v1.20.1
+	golang.org/x/text v0.23.0 // indirect
+	gorm.io/driver/postgres v1.6.0
+)
+</file>
+
+<file path="Makefile">
+all: build test
+
+build:
+	@echo "Building..."
+	
+	@go build -o main cmd/api/main.go
+
+migrate:
+	@echo "====> Adding a new migration"
+	@if [ -z "$(name)" ]; then echo "Migration name is required"; exit 1; fi
+	@migrate create -ext sql -dir internal/infra/database/migrate/migrations $(name)
+
+migrate-up: 
+	@echo "====> Applying all pending migrations"
+	@go run internal/infra/database/migrate/migrate.go up
+
+migrate-down: 
+	@echo "====> Reverting all migrations"
+	@go run internal/infra/database/migrate/migrate.go down
+
+.PHONY: all build run test clean watch docker-run docker-down itest migrate-up migrate-down
+</file>
+
+</files>
