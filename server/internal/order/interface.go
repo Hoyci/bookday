@@ -3,6 +3,7 @@ package order
 import (
 	"context"
 	"errors"
+	"time"
 
 	models "github.com/hoyci/bookday/internal/infra/database/model"
 )
@@ -13,6 +14,7 @@ type Repository interface {
 	CreateOrderInTx(ctx context.Context, order *Order) error
 	FindOrderByID(ctx context.Context, id string) (*Order, error)
 	UpdateOrderStatus(ctx context.Context, id string, status models.OrderStatus) error
+	FindPendingOrdersBefore(ctx context.Context, cutoffTime time.Time) ([]*Order, error)
 }
 
 type Service interface {

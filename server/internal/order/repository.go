@@ -3,6 +3,7 @@ package order
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	models "github.com/hoyci/bookday/internal/infra/database/model"
@@ -92,4 +93,29 @@ func (r *gormRepository) UpdateOrderStatus(ctx context.Context, id string, statu
 		return fault.New("order not found for update", fault.WithKind(fault.KindNotFound))
 	}
 	return nil
+}
+
+func (r *gormRepository) FindPendingOrdersBefore(ctx context.Context, cutoffTime time.Time) ([]*Order, error) {
+	var orderModels []*models.OrderModel
+	result := r.db.WithContext(ctx).
+		Preload("Items").
+		Where("status = ? AND created_at < ?", models.StatusAwaitingShipment, cutoffTime).
+		Find(&orderModels)
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	var orders []*Order
+	for _, model := range orderModels {
+		var orderItems []*OrderItem
+		for _, itemModel := range model.Items {
+			item, _ := NewOrderItem(itemModel.ID, itemModel.OrderID, itemModel.BookID, itemModel.Quantity, itemModel.PricePerUnit)
+			orderItems = append(orderItems, item)
+		}
+		order, _ := NewOrder(model.ID, model.CustomerName, model.CustomerAddress, model.TotalPrice, orderItems)
+		orders = append(orders, order)
+	}
+
+	return orders, nil
 }

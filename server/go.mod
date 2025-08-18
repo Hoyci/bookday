@@ -4,6 +4,7 @@ go 1.24.5
 
 require (
 	github.com/go-ozzo/ozzo-validation/v4 v4.3.0
+	github.com/muesli/clusters v0.0.0-20180605185049-a07a36e67d36
 	gorm.io/gorm v1.30.1
 )
 
@@ -52,8 +53,9 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
-	github.com/jmoiron/sqlx v1.4.0
 	github.com/lib/pq v1.10.9
+	github.com/muesli/kmeans v0.3.1
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/viper v1.20.1
 	golang.org/x/text v0.23.0 // indirect
 	gorm.io/driver/postgres v1.6.0

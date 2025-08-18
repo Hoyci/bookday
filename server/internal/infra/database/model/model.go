@@ -71,3 +71,50 @@ type BookModel struct {
 func (BookModel) TableName() string {
 	return "books"
 }
+
+type DeliveryRouteStatus string
+
+const (
+	RouteStatusPending    DeliveryRouteStatus = "pending"
+	RouteStatusInProgress DeliveryRouteStatus = "in_progress"
+	RouteStatusCompleted  DeliveryRouteStatus = "completed"
+)
+
+type RouteStopStatus string
+
+const (
+	StopStatusPending   RouteStopStatus = "pending"
+	StopStatusDelivered RouteStopStatus = "delivered"
+	StopStatusFailed    RouteStopStatus = "failed"
+)
+
+type DeliveryRouteModel struct {
+	ID        string `gorm:"type:uuid;primary_key"`
+	Status    DeliveryRouteStatus
+	DriverID  *string `gorm:"type:uuid"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Stops     []RouteStopModel `gorm:"foreignKey:RouteID"`
+}
+
+func (DeliveryRouteModel) TableName() string {
+	return "delivery_routes"
+}
+
+type RouteStopModel struct {
+	ID        string `gorm:"type:uuid;primary_key"`
+	RouteID   string `gorm:"type:uuid"`
+	Sequence  int
+	Address   string
+	Status    RouteStopStatus
+	Latitude  float64
+	Longitude float64
+	Notes     *string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Orders    []OrderModel `gorm:"many2many:route_stop_orders;joinForeignKey:route_stop_id;joinReferences:order_id"`
+}
+
+func (RouteStopModel) TableName() string {
+	return "route_stops"
+}
