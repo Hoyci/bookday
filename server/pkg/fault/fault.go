@@ -4,7 +4,10 @@
 // application layers.
 package fault
 
-import "fmt"
+import (
+	"fmt"
+	"net/http"
+)
 
 type Error struct {
 	Message string
@@ -29,6 +32,7 @@ type Option func(*Error)
 func New(message string, options ...Option) *Error {
 	err := &Error{
 		Message: message,
+		Code:    http.StatusInternalServerError,
 	}
 	for _, opt := range options {
 		opt(err)

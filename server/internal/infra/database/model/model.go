@@ -34,13 +34,14 @@ const (
 
 type OrderModel struct {
 	ID              string `gorm:"type:uuid;primary_key"`
-	CustomerName    string
+	CustomerID      string `gorm:"type:uuid"`
 	CustomerAddress string
 	Status          OrderStatus `gorm:"type:order_status"`
 	TotalPrice      float64
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	Items           []OrderItemModel `gorm:"foreignKey:OrderID"`
+	User            UserModel        `gorm:"foreignKey:CustomerID"`
 }
 
 func (OrderModel) TableName() string {
@@ -117,4 +118,28 @@ type RouteStopModel struct {
 
 func (RouteStopModel) TableName() string {
 	return "route_stops"
+}
+
+type UserModel struct {
+	ID           string `gorm:"type:uuid;primary_key"`
+	Name         string
+	Email        string `gorm:"unique"`
+	PasswordHash string
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	Roles        []RoleModel `gorm:"many2many:user_roles;joinForeignKey:user_id;joinReferences:role_id"`
+}
+
+func (UserModel) TableName() string {
+	return "users"
+}
+
+type RoleModel struct {
+	ID    uint        `gorm:"primary_key"`
+	Name  string      `gorm:"unique"`
+	Users []UserModel `gorm:"many2many:user_roles;joinForeignKey:role_id;joinReferences:user_id"`
+}
+
+func (RoleModel) TableName() string {
+	return "roles"
 }

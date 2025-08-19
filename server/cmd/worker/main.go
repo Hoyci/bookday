@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -28,7 +27,6 @@ func main() {
 	sqlDB, _ := db.DB()
 	defer sqlDB.Close()
 
-	// catalogRepo := catalog.NewGORMRepository(db)
 	orderRepo := order.NewGORMRepository(db)
 	nominatimClient := geocoder.NewNominatimClient(cfg.AppName, "v1.0")
 	routingRepo := routing.NewGORMRepository(db)
@@ -36,13 +34,11 @@ func main() {
 
 	// c := cron.New(cron.WithSeconds())
 
-	// _, err = c.AddFunc("12 13 * * * *", func() {
-	// appLogger.Info("cron job triggered: starting route generation")
+	// _, err = c.AddFunc("0 9 9 * * *", func() {
+	appLogger.Info("cron job triggered: starting route generation")
 
 	now := time.Now()
 	cutoffTime := time.Date(now.Year(), now.Month(), now.Day(), 9, 0, 0, 0, now.Location())
-
-	fmt.Println("cutOffTime", cutoffTime)
 
 	if err := routingSvc.GenerateRoutes(context.Background(), cutoffTime); err != nil {
 		appLogger.Error("route generation job failed", "error", err)

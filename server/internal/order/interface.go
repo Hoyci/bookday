@@ -18,6 +18,6 @@ type Repository interface {
 }
 
 type Service interface {
-	CreateOrder(ctx context.Context, dto CreateOrderDTO) (*OrderDTO, error)
+	CreateOrder(ctx context.Context, userID string, dto CreateOrderDTO) (*OrderDTO, error)
 	GetOrderDetails(ctx context.Context, id string) (*OrderDTO, error)
 }

@@ -8,33 +8,42 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/google/uuid"
+	"github.com/hoyci/bookday/internal/auth"
 	"github.com/hoyci/bookday/internal/catalog"
 	"github.com/hoyci/bookday/pkg/fault"
 )
 
 type service struct {
 	orderRepo   Repository
-	catalogRepo catalog.Repository // Dependência injetada
+	catalogRepo catalog.Repository
+	authRepo    auth.Repository
 	log         *log.Logger
 }
 
-func NewService(orderRepo Repository, catalogRepo catalog.Repository, logger *log.Logger) Service {
+func NewService(orderRepo Repository, catalogRepo catalog.Repository, authRepo auth.Repository, logger *log.Logger) Service {
 	return &service{
 		orderRepo:   orderRepo,
 		catalogRepo: catalogRepo,
+		authRepo:    authRepo,
 		log:         logger,
 	}
 }
 
-func (s *service) CreateOrder(ctx context.Context, dto CreateOrderDTO) (*OrderDTO, error) {
-	s.log.Info("starting order creation process", "customer", dto.CustomerName)
+func (s *service) CreateOrder(ctx context.Context, userID string, dto CreateOrderDTO) (*OrderDTO, error) {
+	s.log.Info("starting order creation process for user", "user_id", userID)
 	if err := dto.Validate(); err != nil {
 		return nil, fault.New("invalid order data", fault.WithHTTPCode(http.StatusBadRequest), fault.WithError(err))
 	}
 
+	user, err := s.authRepo.FindUserByID(ctx, userID)
+	if err != nil {
+		s.log.Warn("user not found when creating order", "user_id", userID, "error", err)
+		return nil, fault.New("authenticated user not found", fault.WithHTTPCode(http.StatusNotFound), fault.WithError(err))
+	}
+
 	var total float64
 	var orderItems []*OrderItem
-	booksToVerify := make(map[string]int) // Mapa para verificar o estoque total de cada livro
+	booksToVerify := make(map[string]int)
 
 	for _, itemDTO := range dto.Items {
 		booksToVerify[itemDTO.BookID] += itemDTO.Quantity
@@ -63,7 +72,7 @@ func (s *service) CreateOrder(ctx context.Context, dto CreateOrderDTO) (*OrderDT
 		orderItems = append(orderItems, item)
 	}
 
-	order, _ := NewOrder(uuid.NewString(), dto.CustomerName, dto.CustomerAddress, total, orderItems)
+	order, _ := NewOrder(uuid.NewString(), user.ID(), dto.CustomerAddress, total, orderItems)
 
 	if err := s.orderRepo.CreateOrderInTx(ctx, order); err != nil {
 		s.log.Error("failed to create order transaction", "error", err)
@@ -99,7 +108,7 @@ func toOrderDTO(order *Order) *OrderDTO {
 
 	return &OrderDTO{
 		ID:              order.ID(),
-		CustomerName:    order.CustomerName(),
+		CustomerID:      order.CustomerID(),
 		CustomerAddress: order.CustomerAddress(),
 		Status:          string(order.Status()),
 		TotalPrice:      order.TotalPrice(),

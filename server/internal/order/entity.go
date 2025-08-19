@@ -8,7 +8,7 @@ import (
 
 type Order struct {
 	id              string
-	customerName    string
+	customerID      string
 	customerAddress string
 	status          models.OrderStatus
 	totalPrice      float64
@@ -24,10 +24,10 @@ type OrderItem struct {
 	priceAtPurchase float64
 }
 
-func NewOrder(id, customerName, customerAddress string, totalPrice float64, items []*OrderItem) (*Order, error) {
+func NewOrder(id, customerID, customerAddress string, totalPrice float64, items []*OrderItem) (*Order, error) {
 	order := &Order{
 		id:              id,
-		customerName:    customerName,
+		customerID:      customerID,
 		customerAddress: customerAddress,
 		status:          models.StatusAwaitingShipment,
 		totalPrice:      totalPrice,
@@ -47,8 +47,9 @@ func NewOrderItem(id, orderID, bookID string, quantity int, priceAtPurchase floa
 	}
 	return item, nil
 }
+
 func (o *Order) ID() string                 { return o.id }
-func (o *Order) CustomerName() string       { return o.customerName }
+func (o *Order) CustomerID() string         { return o.customerID }
 func (o *Order) CustomerAddress() string    { return o.customerAddress }
 func (o *Order) Status() models.OrderStatus { return o.status }
 func (o *Order) TotalPrice() float64        { return o.totalPrice }

@@ -8,7 +8,7 @@ import (
 
 type OrderDTO struct {
 	ID              string         `json:"id"`
-	CustomerName    string         `json:"customer_name"`
+	CustomerID      string         `json:"customer_id"`
 	CustomerAddress string         `json:"customer_address"`
 	Status          string         `json:"status"`
 	TotalPrice      float64        `json:"total_price"`
@@ -23,7 +23,6 @@ type OrderItemDTO struct {
 }
 
 type CreateOrderDTO struct {
-	CustomerName    string               `json:"customer_name"`
 	CustomerAddress string               `json:"customer_address"`
 	Items           []CreateOrderItemDTO `json:"items"`
 }
@@ -35,10 +34,9 @@ type CreateOrderItemDTO struct {
 
 func (dto CreateOrderDTO) Validate() error {
 	return v.ValidateStruct(&dto,
-		v.Field(&dto.CustomerName, v.Required, v.Length(3, 100)),
 		v.Field(&dto.CustomerAddress, v.Required, v.Length(10, 255)),
-		v.Field(&dto.Items, v.Required, v.Length(1, 0)), // Pelo menos 1 item
-		v.Field(&dto.Items), // Valida cada item na lista
+		v.Field(&dto.Items, v.Required, v.Length(1, 0)),
+		v.Field(&dto.Items),
 	)
 }
 

@@ -42,12 +42,14 @@ func (r *gormRepository) CreateRoutesInTx(ctx context.Context, routes []*Deliver
 					return err
 				}
 
-				ordersToAssociate := make([]models.OrderModel, len(stop.OrderIDs()))
-				for i, orderID := range stop.OrderIDs() {
-					ordersToAssociate[i] = models.OrderModel{ID: orderID}
-				}
-				if err := tx.Model(&stopModel).Association("Orders").Append(ordersToAssociate); err != nil {
-					return err
+				for _, orderID := range stop.OrderIDs() {
+					joinRecord := map[string]interface{}{
+						"route_stop_id": stopModel.ID,
+						"order_id":      orderID,
+					}
+					if err := tx.Table("route_stop_orders").Create(joinRecord).Error; err != nil {
+						return err
+					}
 				}
 
 				allOrderIDsInRoute = append(allOrderIDsInRoute, stop.OrderIDs()...)

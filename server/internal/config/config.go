@@ -28,6 +28,11 @@ type Config struct {
 	StorageAccessKey  string `mapstructure:"STORAGE_ACCESS_KEY"`
 	StorageSecretKey  string `mapstructure:"STORAGE_SECRET_KEY"`
 	StorageBucketName string `mapstructure:"STORAGE_BUCKET_NAME"`
+
+	JWTAccessSecret     string `mapstructure:"JWT_ACCESS_SECRET"`
+	JWTRefreshSecret    string `mapstructure:"JWT_REFRESH_SECRET"`
+	JWTAccessExpMinutes int16  `mapstructure:"JWT_ACCESS_EXP_MINUTES"`
+	JWTRefreshExpHours  int16  `mapstructure:"JWT_REFRESH_EXP_HOURS"`
 }
 
 func GetConfig() *Config {

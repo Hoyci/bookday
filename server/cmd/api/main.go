@@ -6,11 +6,14 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/hoyci/bookday/internal/auth"
 	"github.com/hoyci/bookday/internal/catalog"
 	"github.com/hoyci/bookday/internal/config"
 	"github.com/hoyci/bookday/internal/infra/database/pg"
 	"github.com/hoyci/bookday/internal/infra/logger"
+	appMiddleware "github.com/hoyci/bookday/internal/middleware"
 	"github.com/hoyci/bookday/internal/order"
+	"github.com/hoyci/bookday/pkg/jwt"
 )
 
 func main() {
@@ -31,20 +34,37 @@ func main() {
 	}
 	defer sqlDB.Close()
 
+	authRepo := auth.NewGORMRepository(db)
 	catalogRepo := catalog.NewGORMRepository(db)
-	catalogSvc := catalog.NewService(catalogRepo, appLogger)
-	catalogHandler := catalog.NewHTTPHandler(catalogSvc)
-
 	orderRepo := order.NewGORMRepository(db)
-	orderSvc := order.NewService(orderRepo, catalogRepo, appLogger)
+
+	jwtSvc := jwt.NewService(cfg.JWTAccessSecret, cfg.JWTRefreshSecret, "bookday-server-api", int(cfg.JWTAccessExpMinutes), int(cfg.JWTRefreshExpHours))
+	authSvc := auth.NewService(authRepo, appLogger, jwtSvc)
+	orderSvc := order.NewService(orderRepo, catalogRepo, authRepo, appLogger)
+	catalogSvc := catalog.NewService(catalogRepo, appLogger)
+
+	authHandler := auth.NewHTTPHandler(authSvc)
 	orderHandler := order.NewHTTPHandler(orderSvc)
+	catalogHandler := catalog.NewHTTPHandler(catalogSvc)
 
 	router := chi.NewRouter()
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
 
+	authMiddleware := appMiddleware.NewAuthenticator(jwtSvc)
+
+	router.Group(func(r chi.Router) {
+		authHandler.RegisterRoutes(r)
+	})
+
+	router.Group(func(r chi.Router) {
+		r.Use(authMiddleware.AuthMiddleware)
+		r.Use(appMiddleware.RequireRole("CUSTOMER"))
+
+		orderHandler.RegisterRoutes(r)
+	})
+
 	catalogHandler.RegisterRoutes(router)
-	orderHandler.RegisterRoutes(router)
 
 	listenAddr := fmt.Sprintf(":%d", cfg.Port)
 	appLogger.Info("server is starting", "address", listenAddr)

@@ -22,7 +22,7 @@ func NewGORMRepository(db *gorm.DB) Repository {
 func (r *gormRepository) CreateOrderInTx(ctx context.Context, order *Order) error {
 	orderModel := models.OrderModel{
 		ID:              order.ID(),
-		CustomerName:    order.CustomerName(),
+		CustomerID:      order.CustomerID(),
 		CustomerAddress: order.CustomerAddress(),
 		Status:          models.OrderStatus(order.Status()),
 		TotalPrice:      order.TotalPrice(),
@@ -79,7 +79,7 @@ func (r *gormRepository) FindOrderByID(ctx context.Context, id string) (*Order, 
 		orderItems = append(orderItems, item)
 	}
 
-	order, _ := NewOrder(orderModel.ID, orderModel.CustomerName, orderModel.CustomerAddress, orderModel.TotalPrice, orderItems)
+	order, _ := NewOrder(orderModel.ID, orderModel.CustomerID, orderModel.CustomerAddress, orderModel.TotalPrice, orderItems)
 
 	return order, nil
 }
@@ -113,7 +113,7 @@ func (r *gormRepository) FindPendingOrdersBefore(ctx context.Context, cutoffTime
 			item, _ := NewOrderItem(itemModel.ID, itemModel.OrderID, itemModel.BookID, itemModel.Quantity, itemModel.PricePerUnit)
 			orderItems = append(orderItems, item)
 		}
-		order, _ := NewOrder(model.ID, model.CustomerName, model.CustomerAddress, model.TotalPrice, orderItems)
+		order, _ := NewOrder(model.ID, model.CustomerID, model.CustomerAddress, model.TotalPrice, orderItems)
 		orders = append(orders, order)
 	}
 
