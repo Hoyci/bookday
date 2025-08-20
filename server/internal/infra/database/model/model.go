@@ -134,9 +134,17 @@ func (UserModel) TableName() string {
 	return "users"
 }
 
+type RolesType string
+
+const (
+	RoleAdmin    RolesType = "ADMIN"
+	RoleDriver   RolesType = "DRIVER"
+	RoleCustomer RolesType = "CUSTOMER"
+)
+
 type RoleModel struct {
 	ID    uint        `gorm:"primary_key"`
-	Name  string      `gorm:"unique"`
+	Name  RolesType   `gorm:"unique"`
 	Users []UserModel `gorm:"many2many:user_roles;joinForeignKey:role_id;joinReferences:user_id"`
 }
 

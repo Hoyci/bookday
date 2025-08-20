@@ -1,8 +1,8 @@
 {
 	"info": {
-		"_postman_id": "a1b2c3d4-e5f6-7890-1234-abcdef123456",
-		"name": "Bookday API (Atualizada)",
-		"description": "Coleção Postman gerada a partir da análise do código-fonte da API Bookday, incluindo configuração de autenticação.",
+		"_postman_id": "f5e4d3c2-b1a0-4987-8e6f-1a2b3c4d5e6f",
+		"name": "Bookday API (Completa)",
+		"description": "Coleção Postman gerada a partir da análise do código-fonte da API Bookday, incluindo todas as rotas de usuário, catálogo, pedidos e administração.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
@@ -11,7 +11,7 @@
 			"description": "Endpoints para registro e autenticação de usuários.",
 			"item": [
 				{
-					"name": "Register New User",
+					"name": "Register New Customer",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -80,6 +80,50 @@
 							]
 						},
 						"description": "Autentica um usuário e retorna um access_token. O token é salvo automaticamente na variável `{{accessToken}}`."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Admin",
+			"description": "Endpoints exclusivos para administradores. Requer um token de um usuário com a role 'ADMIN'.",
+			"item": [
+				{
+					"name": "Create User By Admin",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Jane Driver\",\n    \"email\": \"jane.driver@example.com\",\n    \"password\": \"password1234\",\n    \"role\": \"DRIVER\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/admin/users",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"admin",
+								"users"
+							]
+						},
+						"description": "Cria um novo usuário com um perfil (role) específico. Esta rota requer que o token JWT enviado seja de um usuário com a role 'ADMIN'."
 					},
 					"response": []
 				}
@@ -163,7 +207,7 @@
 		},
 		{
 			"name": "Orders",
-			"description": "Endpoints para o gerenciamento de pedidos. Requer autenticação.",
+			"description": "Endpoints para o gerenciamento de pedidos. Requer autenticação de um usuário com a role 'CUSTOMER'.",
 			"item": [
 				{
 					"name": "Create Order",
@@ -198,7 +242,7 @@
 								"orders"
 							]
 						},
-						"description": "Cria um novo pedido para o cliente autenticado. O ID do cliente é extraído do token JWT."
+						"description": "Cria um novo pedido para o cliente autenticado. O ID do cliente é extraído do token JWT e a rota requer a role 'CUSTOMER'."
 					},
 					"response": []
 				}
