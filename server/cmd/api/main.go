@@ -9,6 +9,7 @@ import (
 	"github.com/hoyci/bookday/internal/auth"
 	"github.com/hoyci/bookday/internal/catalog"
 	"github.com/hoyci/bookday/internal/config"
+	models "github.com/hoyci/bookday/internal/infra/database/model"
 	"github.com/hoyci/bookday/internal/infra/database/pg"
 	"github.com/hoyci/bookday/internal/infra/logger"
 	appMiddleware "github.com/hoyci/bookday/internal/middleware"
@@ -54,17 +55,24 @@ func main() {
 	authMiddleware := appMiddleware.NewAuthenticator(jwtSvc)
 
 	router.Group(func(r chi.Router) {
-		authHandler.RegisterRoutes(r)
+		authHandler.RegisterPublicRoutes(r)
 	})
+
+	catalogHandler.RegisterRoutes(router)
 
 	router.Group(func(r chi.Router) {
 		r.Use(authMiddleware.AuthMiddleware)
-		r.Use(appMiddleware.RequireRole("CUSTOMER"))
+		r.Use(appMiddleware.RequireRole(models.RoleCustomer))
 
 		orderHandler.RegisterRoutes(r)
 	})
 
-	catalogHandler.RegisterRoutes(router)
+	router.Group(func(r chi.Router) {
+		r.Use(authMiddleware.AuthMiddleware)
+		r.Use(appMiddleware.RequireRole(models.RoleAdmin))
+
+		authHandler.RegisterAdminRoutes(r)
+	})
 
 	listenAddr := fmt.Sprintf(":%d", cfg.Port)
 	appLogger.Info("server is starting", "address", listenAddr)

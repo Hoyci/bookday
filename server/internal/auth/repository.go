@@ -9,8 +9,6 @@ import (
 	"gorm.io/gorm"
 )
 
-const defaultUserRole = "CUSTOMER"
-
 type gormRepository struct {
 	db *gorm.DB
 }
@@ -51,7 +49,7 @@ func (r *gormRepository) FindUserByID(ctx context.Context, id string) (*User, er
 	return toUserEntity(&userModel), nil
 }
 
-func (r *gormRepository) CreateUser(ctx context.Context, user *User) error {
+func (r *gormRepository) CreateUser(ctx context.Context, user *User, role string) error {
 	userModel := models.UserModel{
 		ID:           user.ID(),
 		Name:         user.Name(),
@@ -61,15 +59,15 @@ func (r *gormRepository) CreateUser(ctx context.Context, user *User) error {
 	}
 
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var defaultRole models.RoleModel
-		if err := tx.First(&defaultRole, "name = ?", defaultUserRole).Error; err != nil {
+		var roleToAssign models.RoleModel
+		if err := tx.First(&roleToAssign, "name = ?", role).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return fault.New("default role for user not found in database", fault.WithKind(fault.KindUnexpected))
+				return fault.New("The specified role does not exist", fault.WithKind(fault.KindUnexpected), fault.WithError(err))
 			}
-			return fault.New("failed to query default role", fault.WithError(err))
+			return fault.New("failed to query role", fault.WithError(err))
 		}
 
-		userModel.Roles = []models.RoleModel{defaultRole}
+		userModel.Roles = []models.RoleModel{roleToAssign}
 
 		if err := tx.Create(&userModel).Error; err != nil {
 			return fault.New("failed to create user in database", fault.WithError(err), fault.WithHTTPCode(500))
@@ -82,7 +80,7 @@ func (r *gormRepository) CreateUser(ctx context.Context, user *User) error {
 func toUserEntity(model *models.UserModel) *User {
 	roleNames := make([]string, len(model.Roles))
 	for i, role := range model.Roles {
-		roleNames[i] = role.Name
+		roleNames[i] = string(role.Name)
 	}
 
 	user, _ := NewUser(

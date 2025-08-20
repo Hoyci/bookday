@@ -5,19 +5,21 @@ import (
 
 	v "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
+	models "github.com/hoyci/bookday/internal/infra/database/model"
 )
 
 type RegisterUserDTO struct {
 	Name     string `json:"name"`
 	Email    string `json:"email"`
 	Password string `json:"password"`
+	Role     string `json:"role,omitempty"`
 }
 
 func (dto RegisterUserDTO) Validate() error {
 	return v.ValidateStruct(&dto,
 		v.Field(&dto.Name, v.Required.Error("name is required"), v.Length(3, 100)),
 		v.Field(&dto.Email, v.Required.Error("email is required"), is.Email),
-		v.Field(&dto.Password, v.Required.Error("password is required"), v.Length(8, 100)),
+		v.Field(&dto.Role, v.In(string(models.RoleCustomer), string(models.RoleDriver), string(models.RoleAdmin), "").Error("invalid role specified")),
 	)
 }
 
