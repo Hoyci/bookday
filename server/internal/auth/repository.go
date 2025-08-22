@@ -77,6 +77,27 @@ func (r *gormRepository) CreateUser(ctx context.Context, user *User, role string
 	})
 }
 
+func (r *gormRepository) FindUsersByRole(ctx context.Context, role models.RolesType) ([]*User, error) {
+	var userModels []models.UserModel
+
+	err := r.db.WithContext(ctx).
+		Preload("Roles").
+		Joins("JOIN user_roles on user_roles.user_id = users.id").
+		Joins("JOIN roles on roles.id = user_roles.role_id").
+		Where("roles.name = ?", role).
+		Find(&userModels).Error
+	if err != nil {
+		return nil, fault.New("failed to find users by role", fault.WithError(err), fault.WithHTTPCode(500))
+	}
+
+	var users []*User
+	for _, model := range userModels {
+		users = append(users, toUserEntity(&model))
+	}
+
+	return users, nil
+}
+
 func toUserEntity(model *models.UserModel) *User {
 	roleNames := make([]string, len(model.Roles))
 	for i, role := range model.Roles {

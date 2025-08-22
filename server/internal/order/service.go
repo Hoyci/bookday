@@ -64,7 +64,7 @@ func (s *service) CreateOrder(ctx context.Context, userID string, dto CreateOrde
 	for _, itemDTO := range dto.Items {
 		book, err := s.catalogRepo.FindBookByID(ctx, itemDTO.BookID)
 		if err != nil {
-			return nil, err // O erro já vem formatado
+			return nil, err
 		}
 		price := book.CatalogPrice()
 		total += price * float64(itemDTO.Quantity)
