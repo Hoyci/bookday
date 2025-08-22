@@ -25,6 +25,7 @@ type RouteStop struct {
 	longitude float64
 	notes     *string
 	orderIDs  []string
+	updatedAt time.Time
 }
 
 func NewDeliveryRoute(id string, stops []*RouteStop) (*DeliveryRoute, error) {
@@ -64,3 +65,4 @@ func (rs *RouteStop) Status() models.RouteStopStatus { return rs.status }
 func (rs *RouteStop) Latitude() float64              { return rs.latitude }
 func (rs *RouteStop) Longitude() float64             { return rs.longitude }
 func (rs *RouteStop) OrderIDs() []string             { return rs.orderIDs }
+func (rs *RouteStop) UpdatedAt() time.Time           { return rs.updatedAt }

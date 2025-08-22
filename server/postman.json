@@ -1,14 +1,14 @@
 {
 	"info": {
-		"_postman_id": "f5e4d3c2-b1a0-4987-8e6f-1a2b3c4d5e6f",
+		"_postman_id": "a1b2c3d4-e5f6-7890-1234-abcdef123456",
 		"name": "Bookday API (Completa)",
-		"description": "Coleção Postman gerada a partir da análise do código-fonte da API Bookday, incluindo todas as rotas de usuário, catálogo, pedidos e administração.",
+		"description": "Coleção Postman gerada a partir da análise completa do código-fonte da API Bookday, incluindo todas as rotas de usuário, catálogo, pedidos, administração e rotas de entrega para motoristas.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
 		{
-			"name": "Auth",
-			"description": "Endpoints para registro e autenticação de usuários.",
+			"name": "Auth (Public)",
+			"description": "Endpoints públicos para registro e autenticação de usuários.",
 			"item": [
 				{
 					"name": "Register New Customer",
@@ -79,7 +79,7 @@
 								"login"
 							]
 						},
-						"description": "Autentica um usuário e retorna um access_token. O token é salvo automaticamente na variável `{{accessToken}}`."
+						"description": "Autentica um usuário e retorna um access_token. O token é salvo automaticamente na variável `{{accessToken}}` para ser usado em rotas protegidas."
 					},
 					"response": []
 				}
@@ -126,12 +126,41 @@
 						"description": "Cria um novo usuário com um perfil (role) específico. Esta rota requer que o token JWT enviado seja de um usuário com a role 'ADMIN'."
 					},
 					"response": []
+				},
+				{
+					"name": "Get Drivers Status",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/drivers/status",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"drivers",
+								"status"
+							]
+						},
+						"description": "Retorna o status atual de todos os motoristas, incluindo se estão em uma rota ativa e detalhes da rota. Requer a role 'ADMIN'."
+					},
+					"response": []
 				}
 			]
 		},
 		{
-			"name": "Catalog",
-			"description": "Endpoints para gerenciar o catálogo de livros.",
+			"name": "Catalog (Public)",
+			"description": "Endpoints para gerenciar o catálogo de livros. Atualmente públicos.",
 			"item": [
 				{
 					"name": "Create Book",
@@ -156,7 +185,7 @@
 								"books"
 							]
 						},
-						"description": "Adiciona um novo livro ao catálogo. Em um ambiente de produção, esta rota provavelmente deveria ser protegida."
+						"description": "Adiciona um novo livro ao catálogo."
 					},
 					"response": []
 				},
@@ -206,7 +235,7 @@
 			]
 		},
 		{
-			"name": "Orders",
+			"name": "Orders (Customer)",
 			"description": "Endpoints para o gerenciamento de pedidos. Requer autenticação de um usuário com a role 'CUSTOMER'.",
 			"item": [
 				{
@@ -243,6 +272,114 @@
 							]
 						},
 						"description": "Cria um novo pedido para o cliente autenticado. O ID do cliente é extraído do token JWT e a rota requer a role 'CUSTOMER'."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Routing (Driver)",
+			"description": "Endpoints para motoristas gerenciarem rotas de entrega. Requer autenticação com a role 'DRIVER'.",
+			"item": [
+				{
+					"name": "Associate Driver to Route",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/route/associate",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"route",
+								"associate"
+							]
+						},
+						"description": "Associa o motorista autenticado à próxima rota de entrega pendente. O motorista deve ter a role 'DRIVER'."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Current Route",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/route/current",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"route",
+								"current"
+							]
+						},
+						"description": "Busca a rota de entrega ativa para o motorista autenticado. Requer a role 'DRIVER'."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Stop Status",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"status\": \"delivered\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/stops/:stopId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"stops",
+								":stopId"
+							],
+							"variable": [
+								{
+									"key": "stopId",
+									"value": "<insira-o-uuid-da-parada-aqui>"
+								}
+							]
+						},
+						"description": "Atualiza o status de uma parada de entrega para 'delivered' ou 'failed'. Requer a role 'DRIVER'."
 					},
 					"response": []
 				}

@@ -2,11 +2,15 @@ package routing
 
 import (
 	"context"
+	"errors"
+	"net/http"
 	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/google/uuid"
+	models "github.com/hoyci/bookday/internal/infra/database/model"
 	"github.com/hoyci/bookday/internal/order"
+	"github.com/hoyci/bookday/pkg/fault"
 )
 
 type deliveryPoint struct {
@@ -113,5 +117,92 @@ func (s *service) GenerateRoutes(ctx context.Context, cutoffTime time.Time) erro
 	}
 
 	s.log.Info("daily route generation completed successfully")
+	return nil
+}
+
+func (s *service) AssociateDriverToRoute(ctx context.Context, driverID string) (*DeliveryRoute, error) {
+	s.log.Info("attempting to associate driver to a route", "driver_id", driverID)
+
+	isActive, err := s.routingRepo.IsDriverOnActiveRoute(ctx, driverID)
+	if err != nil {
+		s.log.Error("failed to check driver's active route status", "driver_id", driverID, "error", err)
+		return nil, err
+	}
+	if isActive {
+		s.log.Warn("driver already has an active route", "driver_id", driverID)
+		return nil, fault.New("driver is already on an active route", fault.WithKind(fault.KindConflict), fault.WithHTTPCode(http.StatusConflict))
+	}
+
+	pendingRoute, err := s.routingRepo.FindPendingRoute(ctx)
+	if err != nil {
+		var f *fault.Error
+		if errors.As(err, &f) && f.Kind == fault.KindNotFound {
+			s.log.Info("no pending routes available for assignment")
+			return nil, fault.New("no delivery routes available at the moment", fault.WithKind(fault.KindNotFound), fault.WithHTTPCode(http.StatusNotFound))
+		}
+		s.log.Error("failed to find a pending route", "error", err)
+		return nil, err
+	}
+
+	err = s.routingRepo.AssignDriverToRoute(ctx, pendingRoute.ID(), driverID)
+	if err != nil {
+		s.log.Error("failed to assign driver to the route", "driver_id", driverID, "route_id", pendingRoute.ID(), "error", err)
+		return nil, err
+	}
+
+	s.log.Info("driver successfully associated with route", "driver_id", driverID, "route_id", pendingRoute.ID())
+
+	pendingRoute.status = models.RouteStatusInProgress
+	driverIDStr := driverID
+	pendingRoute.driverID = &driverIDStr
+
+	return pendingRoute, nil
+}
+
+func (s *service) GetActiveRouteForDriver(ctx context.Context, driverID string) (*DeliveryRoute, error) {
+	s.log.Info("fetching active route for driver", "driver_id", driverID)
+
+	route, err := s.routingRepo.FindActiveRouteByDriverID(ctx, driverID)
+	if err != nil {
+		return nil, err
+	}
+
+	return route, nil
+}
+
+func (s *service) UpdateStopStatus(ctx context.Context, driverID, stopID string, newStatus string) error {
+	dto := UpdateStopStatusDTO{Status: newStatus}
+	if err := dto.Validate(); err != nil {
+		return fault.New("invalid status provided", fault.WithKind(fault.KindValidation), fault.WithHTTPCode(http.StatusBadRequest), fault.WithError(err))
+	}
+
+	route, err := s.routingRepo.FindRouteByStopID(ctx, stopID)
+	if err != nil {
+		return err
+	}
+
+	if route.driverID == nil || *route.driverID != driverID {
+		s.log.Warn("authorization failed: driver does not own this route", "driver_id", driverID, "route_id", route.ID())
+		return fault.New("you are not authorized to update this stop", fault.WithKind(fault.KindForbidden), fault.WithHTTPCode(http.StatusForbidden))
+	}
+
+	stopStatus := models.RouteStopStatus(newStatus)
+	var orderStatus models.OrderStatus
+	if stopStatus == models.StopStatusDelivered {
+		orderStatus = models.StatusDelivered
+	} else {
+		orderStatus = models.StatusDeliveryFailed
+	}
+
+	s.log.Info("updating stop status", "stop_id", stopID, "new_status", newStatus)
+	if err := s.routingRepo.UpdateStopStatusInTx(ctx, stopID, stopStatus, orderStatus); err != nil {
+		s.log.Error("failed to update stop status transactionally", "stop_id", stopID, "error", err)
+		return fault.New("could not update stop status", fault.WithError(err))
+	}
+
+	if err := s.routingRepo.CheckAndCompleteRoute(ctx, route.ID()); err != nil {
+		s.log.Error("failed to check and complete route after stop update", "route_id", route.ID(), "error", err)
+	}
+
 	return nil
 }
