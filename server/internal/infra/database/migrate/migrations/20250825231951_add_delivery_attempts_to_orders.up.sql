@@ -1,0 +1,1 @@
+ALTER TABLE orders ADD COLUMN delivery_attempts INT NOT NULL DEFAULT 0;

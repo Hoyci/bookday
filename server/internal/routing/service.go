@@ -187,15 +187,9 @@ func (s *service) UpdateStopStatus(ctx context.Context, driverID, stopID string,
 	}
 
 	stopStatus := models.RouteStopStatus(newStatus)
-	var orderStatus models.OrderStatus
-	if stopStatus == models.StopStatusDelivered {
-		orderStatus = models.StatusDelivered
-	} else {
-		orderStatus = models.StatusDeliveryFailed
-	}
 
 	s.log.Info("updating stop status", "stop_id", stopID, "new_status", newStatus)
-	if err := s.routingRepo.UpdateStopStatusInTx(ctx, stopID, stopStatus, orderStatus); err != nil {
+	if err := s.routingRepo.UpdateStopStatusInTx(ctx, stopID, stopStatus); err != nil {
 		s.log.Error("failed to update stop status transactionally", "stop_id", stopID, "error", err)
 		return fault.New("could not update stop status", fault.WithError(err))
 	}
