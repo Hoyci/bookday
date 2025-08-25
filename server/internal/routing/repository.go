@@ -187,7 +187,7 @@ func (r *gormRepository) FindRouteByStopID(ctx context.Context, stopID string) (
 	return toDeliveryRouteEntity(&routeModel), nil
 }
 
-func (r *gormRepository) UpdateStopStatusInTx(ctx context.Context, stopID string, stopStatus models.RouteStopStatus, orderStatus models.OrderStatus) error {
+func (r *gormRepository) UpdateStopStatusInTx(ctx context.Context, stopID string, stopStatus models.RouteStopStatus) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Model(&models.RouteStopModel{}).Where("id = ?", stopID).Update("status", stopStatus).Error; err != nil {
 			return err
@@ -198,9 +198,38 @@ func (r *gormRepository) UpdateStopStatusInTx(ctx context.Context, stopID string
 			return err
 		}
 
-		if len(orderIDs) > 0 {
-			if err := tx.Model(&models.OrderModel{}).Where("id IN ?", orderIDs).Update("status", orderStatus).Error; err != nil {
+		if len(orderIDs) == 0 {
+			return nil
+		}
+
+		switch stopStatus {
+		case models.StopStatusDelivered:
+			if err := tx.Model(&models.OrderModel{}).Where("id IN ?", orderIDs).Update("status", models.StatusDelivered).Error; err != nil {
 				return err
+			}
+		case models.StopStatusFailed:
+			var orders []models.OrderModel
+			if err := tx.Where("id IN ?", orderIDs).Find(&orders).Error; err != nil {
+				return err
+			}
+
+			for _, order := range orders {
+				newAttempts := order.DeliveryAttempts + 1
+				var newStatus models.OrderStatus
+
+				if newAttempts >= 2 {
+					newStatus = models.StatusReturnToStock
+				} else {
+					newStatus = models.StatusAwaitingShipment
+				}
+
+				if err := tx.Model(&models.OrderModel{}).Where("id = ?", order.ID).
+					Updates(map[string]any{
+						"delivery_attempts": newAttempts,
+						"status":            newStatus,
+					}).Error; err != nil {
+					return err
+				}
 			}
 		}
 

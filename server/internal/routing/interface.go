@@ -18,7 +18,7 @@ type Repository interface {
 	AssignDriverToRoute(ctx context.Context, routeID, driverID string) error
 	FindActiveRouteByDriverID(ctx context.Context, driverID string) (*DeliveryRoute, error)
 	FindRouteByStopID(ctx context.Context, stopID string) (*DeliveryRoute, error)
-	UpdateStopStatusInTx(ctx context.Context, stopID string, stopStatus models.RouteStopStatus, orderStatus models.OrderStatus) error
+	UpdateStopStatusInTx(ctx context.Context, stopID string, stopStatus models.RouteStopStatus) error
 	CheckAndCompleteRoute(ctx context.Context, routeID string) error
 }
 

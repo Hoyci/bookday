@@ -30,18 +30,20 @@ const (
 	StatusOutForDelivery   OrderStatus = "out_for_delivery"
 	StatusDelivered        OrderStatus = "delivered"
 	StatusDeliveryFailed   OrderStatus = "delivery_failed"
+	StatusReturnToStock    OrderStatus = "return_to_stock"
 )
 
 type OrderModel struct {
-	ID              string `gorm:"type:uuid;primary_key"`
-	CustomerID      string `gorm:"type:uuid"`
-	CustomerAddress string
-	Status          OrderStatus `gorm:"type:order_status"`
-	TotalPrice      float64
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	Items           []OrderItemModel `gorm:"foreignKey:OrderID"`
-	User            UserModel        `gorm:"foreignKey:CustomerID"`
+	ID               string `gorm:"type:uuid;primary_key"`
+	CustomerID       string `gorm:"type:uuid"`
+	CustomerAddress  string
+	Status           OrderStatus `gorm:"type:order_status"`
+	TotalPrice       float64
+	DeliveryAttempts int `gorm:"default:0"`
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	Items            []OrderItemModel `gorm:"foreignKey:OrderID"`
+	User             UserModel        `gorm:"foreignKey:CustomerID"`
 }
 
 func (OrderModel) TableName() string {
